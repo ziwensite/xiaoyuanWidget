@@ -66,6 +66,10 @@ const translations: Record<string, Record<Lang, string>> = {
   'config-query': { en: 'DQL Query', zh: 'DQL 查询语句' },
 
   'label-children': { en: 'Children', zh: '子挂件' },
+  'label-layout-type': { en: 'Layout', zh: '子挂件排列方式' },
+  'label-widget-list': { en: 'Widgets', zh: '挂件列表' },
+  'label-child-list': { en: 'Widgets', zh: '子挂件列表' },
+  'btn-rename': { en: 'Rename', zh: '重命名' },
   'btn-add-child': { en: 'Add Child', zh: '添加子挂件' },
   'btn-switch-type-warn': { en: 'Switching to a non-container type will clear all children. Continue?', zh: '切换为非容器类型将清除所有子挂件，是否继续？' },
   'msg-no-children': { en: 'No children. Click "Add Child" to add one.', zh: '暂无子挂件，点击"添加子挂件"添加。' },

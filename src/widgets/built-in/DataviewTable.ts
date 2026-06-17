@@ -8,7 +8,7 @@ export class DataviewTableWidget extends BaseWidget {
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
     container.addClass('xyw-dv-table');
-    container.createEl('div', { cls: 'xyw-card-title', text: config.title || t('type-dv-table') });
+    container.createEl('div', { cls: 'xyw-card-title', text: config.title || 'Dataview Table' });
 
     const dv = DataviewBridge.getInstance();
     if (!dv.isAvailable()) {

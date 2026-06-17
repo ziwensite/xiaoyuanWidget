@@ -1,10 +1,23 @@
 .xyw-block {
   padding: 12px;
   margin: 8px 0;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  background: var(--background-primary);
   min-height: 60px;
+  position: relative;
+}
+.xyw-block:hover button.xyw-edit-overlay {
+  opacity: 1;
+}
+
+button.xyw-edit-overlay {
+  position: absolute;
+  top: 36px;
+  right: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
 }
 
 .xyw-card-title {
@@ -322,4 +335,74 @@
 .xyw-child-actions-simple {
   display: flex;
   gap: 2px;
+}
+.xyw-child-actions-simple button,
+.xyw-widget-actions button,
+button.xyw-edit-overlay {
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  line-height: 1;
+  height: auto;
+  box-shadow: none;
+  font-size: 14px;
+}
+.xyw-child-actions-simple button:hover,
+.xyw-widget-actions button:hover,
+button.xyw-edit-overlay:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.xyw-child-card-simple[draggable="true"] {
+  cursor: grab;
+}
+.xyw-child-card-simple.xyw-dragging {
+  opacity: 0.4;
+}
+.xyw-child-card-simple.drag-over {
+  border-color: var(--text-accent);
+  background: var(--background-modifier-hover);
+}
+
+/* Section header with inline layout dropdown */
+.xyw-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+.xyw-section-header h3 {
+  margin: 0;
+}
+.xyw-section-header .setting-item {
+  border: none !important;
+  padding: 0 !important;
+}
+.xyw-section-header .setting-item-info {
+  display: none !important;
+}
+.xyw-section-header .setting-item-control {
+  flex: none !important;
+}
+
+.xyw-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+.xyw-bottom-right {
+  display: flex;
+  gap: 8px;
+}
+
+.xyw-edit-overlay svg,
+.xyw-child-actions-simple svg,
+.xyw-widget-actions svg {
+  width: 16px;
+  height: 16px;
 }

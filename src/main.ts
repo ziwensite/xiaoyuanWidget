@@ -11,7 +11,8 @@ import { ContainerColWidget } from './widgets/built-in/ContainerCol';
 import { ContainerTabWidget } from './widgets/built-in/ContainerTab';
 import { CodeBlockRenderer } from './renderer/CodeBlockRenderer';
 import { WidgetPickerModal } from './ui/WidgetPickerModal';
-import { WidgetEditorModal, WidgetSettingTab } from './settings';
+import { WidgetEditorModal } from './modals';
+import { WidgetSettingTab } from './settings';
 import { t, getLang, setLang } from './i18n';
 import { WidgetMeta } from './types';
 
@@ -28,7 +29,7 @@ export default class WidgetPlugin extends Plugin {
       (data) => this.saveData(data)
     );
 
-    this.renderer = new CodeBlockRenderer(this.store);
+    this.renderer = new CodeBlockRenderer(this.store, this);
 
     this.registerWidgetTypes();
     this.registerCodeBlockProcessor();
@@ -189,7 +190,10 @@ export default class WidgetPlugin extends Plugin {
           });
         });
 
-        const widgets = this.store.getWidgets();
+        const widgets = this.store.getWidgets().filter((w: any) => {
+          const containerTypes = new Set(['container-row', 'container-col', 'container-tab-h', 'container-tab-v']);
+          return containerTypes.has(w.type);
+        });
         if (widgets.length === 0) {
           rootSub.addItem((item: any) => {
             item.setTitle(t('label-no-widgets'));

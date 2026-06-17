@@ -1,7 +1,6 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { t } from '../../i18n';
-import { escapeHtml } from '../../utils';
 
 export class RecentFilesWidget extends BaseWidget {
   getType(): string { return 'recent-files'; }
@@ -12,7 +11,7 @@ export class RecentFilesWidget extends BaseWidget {
 
     const vault = app.vault;
     const limit = (config.settings.limit as number) ?? 10;
-    const excludeFolders = (config.settings.excludeFolders as string[]) ?? [];
+    const excludeFolders = ((config.settings.excludeFolders as string) ?? '').split(',').map(s => s.trim()).filter(Boolean);
 
     let files = vault.getMarkdownFiles() as any[];
     files = files

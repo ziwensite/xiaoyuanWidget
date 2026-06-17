@@ -1,6 +1,7 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { createWidget } from '../registry';
+import { t } from '../../i18n';
 
 export class ContainerRowWidget extends BaseWidget {
   getType(): string { return 'container-row'; }
@@ -8,7 +9,7 @@ export class ContainerRowWidget extends BaseWidget {
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
     const children = config.children ?? [];
     if (!children.length) {
-      container.createEl('div', { cls: 'xyw-empty', text: 'No children' });
+      container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-children') });
       return;
     }
 

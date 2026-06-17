@@ -1,7 +1,6 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { t } from '../../i18n';
-import { escapeHtml } from '../../utils';
 
 export class TagCloudWidget extends BaseWidget {
   getType(): string { return 'tag-cloud'; }
@@ -19,12 +18,25 @@ export class TagCloudWidget extends BaseWidget {
 
     for (const file of files) {
       const metadata = cache.getFileCache(file);
-      if (!metadata?.frontmatter?.tags) continue;
-      const tags = metadata.frontmatter.tags;
-      const tagArr = Array.isArray(tags) ? tags : [tags];
-      for (const tag of tagArr) {
+      if (!metadata) continue;
+
+      const seen = new Set<string>();
+
+      const processTag = (tag: string) => {
         const cleanTag = String(tag).replace(/^#/, '');
+        if (!cleanTag || seen.has(cleanTag)) return;
+        seen.add(cleanTag);
         tagCount.set(cleanTag, (tagCount.get(cleanTag) ?? 0) + 1);
+      };
+
+      if (metadata.frontmatter?.tags) {
+        const tags = metadata.frontmatter.tags;
+        const tagArr = Array.isArray(tags) ? tags : [tags];
+        for (const tag of tagArr) processTag(tag);
+      }
+
+      if (metadata.tags) {
+        for (const t of metadata.tags) processTag(t.tag);
       }
     }
 

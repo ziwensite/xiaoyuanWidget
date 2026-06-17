@@ -1,6 +1,6 @@
-import { App, Modal, Setting, Component } from 'obsidian';
+import { App, Modal } from 'obsidian';
 import { WidgetStore } from '../store/WidgetStore';
-import { t, getLang } from '../i18n';
+import { t } from '../i18n';
 
 export class WidgetPickerModal extends Modal {
   private store: WidgetStore;

@@ -27,13 +27,14 @@ __export(main_exports, {
   default: () => WidgetPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian3 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/utils.ts
 function generateId() {
   const d = new Date();
   const pad = (n, len = 2) => String(n).padStart(len, "0");
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const rand = Math.random().toString(36).substring(2, 6);
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${rand}`;
 }
 
 // src/store/WidgetStore.ts
@@ -210,6 +211,10 @@ var translations = {
   "config-min-count": { en: "Min Count", zh: "\u6700\u5C11\u51FA\u73B0\u6B21\u6570" },
   "config-query": { en: "DQL Query", zh: "DQL \u67E5\u8BE2\u8BED\u53E5" },
   "label-children": { en: "Children", zh: "\u5B50\u6302\u4EF6" },
+  "label-layout-type": { en: "Layout", zh: "\u5B50\u6302\u4EF6\u6392\u5217\u65B9\u5F0F" },
+  "label-widget-list": { en: "Widgets", zh: "\u6302\u4EF6\u5217\u8868" },
+  "label-child-list": { en: "Widgets", zh: "\u5B50\u6302\u4EF6\u5217\u8868" },
+  "btn-rename": { en: "Rename", zh: "\u91CD\u547D\u540D" },
   "btn-add-child": { en: "Add Child", zh: "\u6DFB\u52A0\u5B50\u6302\u4EF6" },
   "btn-switch-type-warn": { en: "Switching to a non-container type will clear all children. Continue?", zh: "\u5207\u6362\u4E3A\u975E\u5BB9\u5668\u7C7B\u578B\u5C06\u6E05\u9664\u6240\u6709\u5B50\u6302\u4EF6\uFF0C\u662F\u5426\u7EE7\u7EED\uFF1F" },
   "msg-no-children": { en: 'No children. Click "Add Child" to add one.', zh: '\u6682\u65E0\u5B50\u6302\u4EF6\uFF0C\u70B9\u51FB"\u6DFB\u52A0\u5B50\u6302\u4EF6"\u6DFB\u52A0\u3002' },
@@ -291,7 +296,7 @@ var RecentFilesWidget = class extends BaseWidget {
       return;
     const vault = app.vault;
     const limit = config.settings.limit ?? 10;
-    const excludeFolders = config.settings.excludeFolders ?? [];
+    const excludeFolders = (config.settings.excludeFolders ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     let files = vault.getMarkdownFiles();
     files = files.filter((f) => {
       if (!excludeFolders.length)
@@ -332,13 +337,25 @@ var TagCloudWidget = class extends BaseWidget {
     const cache = app.metadataCache;
     for (const file of files) {
       const metadata = cache.getFileCache(file);
-      if (!metadata?.frontmatter?.tags)
+      if (!metadata)
         continue;
-      const tags = metadata.frontmatter.tags;
-      const tagArr = Array.isArray(tags) ? tags : [tags];
-      for (const tag of tagArr) {
+      const seen = /* @__PURE__ */ new Set();
+      const processTag = (tag) => {
         const cleanTag = String(tag).replace(/^#/, "");
+        if (!cleanTag || seen.has(cleanTag))
+          return;
+        seen.add(cleanTag);
         tagCount.set(cleanTag, (tagCount.get(cleanTag) ?? 0) + 1);
+      };
+      if (metadata.frontmatter?.tags) {
+        const tags = metadata.frontmatter.tags;
+        const tagArr = Array.isArray(tags) ? tags : [tags];
+        for (const tag of tagArr)
+          processTag(tag);
+      }
+      if (metadata.tags) {
+        for (const t3 of metadata.tags)
+          processTag(t3.tag);
       }
     }
     const sorted = Array.from(tagCount.entries()).filter(([_, count]) => count >= minCount).sort((a, b) => b[1] - a[1]);
@@ -429,7 +446,7 @@ var DataviewTableWidget = class extends BaseWidget {
   }
   async renderContent(container, config) {
     container.addClass("xyw-dv-table");
-    container.createEl("div", { cls: "xyw-card-title", text: config.title || t("type-dv-table") });
+    container.createEl("div", { cls: "xyw-card-title", text: config.title || "Dataview Table" });
     const dv = DataviewBridge.getInstance();
     if (!dv.isAvailable()) {
       container.createEl("div", { cls: "xyw-error", text: t("msg-require-dataview") });
@@ -472,7 +489,7 @@ var DataviewListWidget = class extends BaseWidget {
   }
   async renderContent(container, config) {
     container.addClass("xyw-dv-list");
-    container.createEl("div", { cls: "xyw-card-title", text: config.title || t("type-dv-list") });
+    container.createEl("div", { cls: "xyw-card-title", text: config.title || "Dataview List" });
     const dv = DataviewBridge.getInstance();
     if (!dv.isAvailable()) {
       container.createEl("div", { cls: "xyw-error", text: t("msg-require-dataview") });
@@ -492,7 +509,8 @@ var DataviewListWidget = class extends BaseWidget {
       const list = container.createEl("ul", { cls: "xyw-list" });
       for (const row of values) {
         const item = list.createEl("li", { cls: "xyw-list-item" });
-        item.textContent = row[0] ? String(row[0]) : "-";
+        const text = row.map((v) => v != null ? String(v) : "-").join(" \xB7 ");
+        item.textContent = text;
       }
     } catch (e) {
       container.createEl("div", { cls: "xyw-error", text: t2("msg-dataview-query-error", { msg: e.message }) });
@@ -508,7 +526,7 @@ var ContainerRowWidget = class extends BaseWidget {
   async renderContent(container, config) {
     const children = config.children ?? [];
     if (!children.length) {
-      container.createEl("div", { cls: "xyw-empty", text: "No children" });
+      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
       return;
     }
     container.addClass("xyw-container-row");
@@ -535,7 +553,7 @@ var ContainerColWidget = class extends BaseWidget {
   async renderContent(container, config) {
     const children = config.children ?? [];
     if (!children.length) {
-      container.createEl("div", { cls: "xyw-empty", text: "No children" });
+      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
       return;
     }
     container.addClass("xyw-container-col");
@@ -562,12 +580,12 @@ var ContainerTabWidget = class extends BaseWidget {
     this.tabContentEl = null;
   }
   getType() {
-    return "container-tab-h";
+    return this.config?.type ?? "container-tab-h";
   }
   async renderContent(container, config) {
     const children = config.children ?? [];
     if (!children.length) {
-      container.createEl("div", { cls: "xyw-empty", text: "No children" });
+      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
       return;
     }
     const isVertical = config.type === "container-tab-v";
@@ -624,10 +642,323 @@ var ContainerTabWidget = class extends BaseWidget {
   }
 };
 
-// src/renderer/CodeBlockRenderer.ts
-var CodeBlockRenderer = class {
-  constructor(store) {
+// src/modals/ChildEditorModal.ts
+var import_obsidian = require("obsidian");
+
+// src/modals/_shared.ts
+var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
+var LEAF_TYPES = /* @__PURE__ */ new Set(["stats-card", "recent-files", "tag-cloud", "dv-table", "dv-list"]);
+function isContainerType(type) {
+  return CONTAINER_TYPES.has(type);
+}
+function isLeafType(type) {
+  return LEAF_TYPES.has(type);
+}
+
+// src/modals/ChildEditorModal.ts
+var ChildEditorModal = class extends import_obsidian.Modal {
+  constructor(app, existing) {
+    super(app);
+    this.existing = existing;
+    this.result = null;
+    this.resolve = null;
+  }
+  async openAndGet() {
+    return new Promise((resolve) => {
+      this.resolve = resolve;
+      this.open();
+    });
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("xyw-editor-modal");
+    const isNew = !this.existing;
+    contentEl.createEl("h2", { text: isNew ? t("btn-add-child") : t("btn-edit") });
+    let name = this.existing?.name ?? "";
+    let type = this.existing?.type ?? "stats-card";
+    let settings = this.existing?.settings ? { ...this.existing.settings } : {};
+    let children = this.existing?.children ? JSON.parse(JSON.stringify(this.existing.children)) : [];
+    new import_obsidian.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
+      name = v;
+    }));
+    new import_obsidian.Setting(contentEl).setName(t("label-type")).addDropdown((dd) => {
+      for (const m of getAllWidgetMetas()) {
+        if (isLeafType(m.type)) {
+          dd.addOption(m.type, t(`type-${m.type}`));
+        }
+      }
+      dd.setValue(type);
+      dd.onChange((v) => {
+        type = v;
+        settings = {};
+        const meta = getWidgetMeta(type);
+        if (meta) {
+          for (const field of meta.settingSchema) {
+            settings[field.key] = field.defaultValue;
+          }
+        }
+        if (!isContainerType(type))
+          children = [];
+        this.renderSettings(type, settings);
+      });
+    });
+    this.settingsContainerEl = contentEl.createEl("div");
+    this.renderSettings(type, settings);
+    new import_obsidian.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-save")).setCta().onClick(() => {
+      if (!name.trim()) {
+        new import_obsidian.Notice("Name is required");
+        return;
+      }
+      this.result = { name: name.trim(), type, settings };
+      if (isContainerType(type))
+        this.result.children = children;
+      this.close();
+    })).addButton((btn) => btn.setButtonText(t("btn-cancel")).onClick(() => this.close()));
+  }
+  renderSettings(type, settings) {
+    this.settingsContainerEl.empty();
+    const meta = getWidgetMeta(type);
+    if (!meta || meta.settingSchema.length === 0)
+      return;
+    this.settingsContainerEl.createEl("h3", { text: t("label-config") });
+    for (const field of meta.settingSchema) {
+      const setting = new import_obsidian.Setting(this.settingsContainerEl).setName(t(field.labelKey));
+      const currentVal = settings[field.key] ?? field.defaultValue;
+      switch (field.type) {
+        case "text":
+          setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
+            settings[field.key] = v;
+          }));
+          break;
+        case "number":
+          setting.addText((t3) => {
+            t3.setPlaceholder(field.placeholder ?? "0");
+            t3.setValue(String(currentVal));
+            t3.inputEl.type = "number";
+            t3.onChange((v) => {
+              settings[field.key] = Number(v) || 0;
+            });
+          });
+          break;
+        case "textarea":
+          setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
+            settings[field.key] = v;
+          }));
+          break;
+        case "select":
+          if (field.options) {
+            setting.addDropdown((dd) => {
+              for (const opt of field.options)
+                dd.addOption(opt.value, opt.label);
+              dd.setValue(String(currentVal));
+              dd.onChange((v) => {
+                settings[field.key] = v;
+              });
+            });
+          }
+          break;
+      }
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+    if (this.resolve)
+      this.resolve(this.result);
+  }
+};
+
+// src/modals/WidgetEditorModal.ts
+var import_obsidian2 = require("obsidian");
+var WidgetEditorModal = class extends import_obsidian2.Modal {
+  constructor(app, plugin, store, editId, onSaved) {
+    super(app);
+    this.plugin = plugin;
     this.store = store;
+    this.editId = editId;
+    this.onSaved = onSaved;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("xyw-editor-modal");
+    const existing = this.editId ? this.store.getWidget(this.editId) : null;
+    const isNew = !existing;
+    let name = existing?.name ?? "";
+    let type = existing?.type ?? "container-row";
+    let children = existing?.children ? JSON.parse(JSON.stringify(existing.children)) : [];
+    new import_obsidian2.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
+      name = v;
+    }));
+    const dynamicSectionEl = contentEl.createEl("div");
+    let refreshChildren = null;
+    refreshChildren = this.renderDynamicSection(dynamicSectionEl, type, children, (v) => {
+      type = v;
+    });
+    const bottomRow = contentEl.createEl("div", { cls: "xyw-bottom-row" });
+    new import_obsidian2.ButtonComponent(bottomRow).setButtonText(t("btn-add-child")).setCta().onClick(async () => {
+      const modal = new ChildEditorModal(this.app, null);
+      const result = await modal.openAndGet();
+      if (result) {
+        children.push(result);
+        refreshChildren?.();
+      }
+    });
+    const rightGroup = bottomRow.createEl("div", { cls: "xyw-bottom-right" });
+    new import_obsidian2.ButtonComponent(rightGroup).setButtonText(t("btn-save")).setCta().onClick(async () => {
+      if (!name.trim()) {
+        new import_obsidian2.Notice("Name is required");
+        return;
+      }
+      const data = { name: name.trim(), type, settings: {} };
+      if (isContainerType(type))
+        data.children = children;
+      if (isNew) {
+        const saved = await this.store.addWidget(data);
+        new import_obsidian2.Notice(t("btn-save"));
+        this.onSaved(saved);
+      } else {
+        await this.store.updateWidget(this.editId, data);
+        new import_obsidian2.Notice(t("btn-save"));
+        this.onSaved();
+      }
+      this.close();
+    });
+    new import_obsidian2.ButtonComponent(rightGroup).setButtonText(t("btn-cancel")).onClick(() => this.close());
+  }
+  renderDynamicSection(container, type, children, onTypeChange) {
+    container.empty();
+    if (!isContainerType(type))
+      return null;
+    const headerRow = container.createEl("div", { cls: "xyw-section-header" });
+    headerRow.createEl("h3", { text: t("label-widget-list") });
+    new import_obsidian2.Setting(headerRow).setName(t("label-layout-type")).addDropdown((dd) => {
+      for (const m of getAllWidgetMetas()) {
+        if (isContainerType(m.type)) {
+          dd.addOption(m.type, t(`type-${m.type}`));
+        }
+      }
+      dd.setValue(type);
+      dd.onChange((v) => {
+        onTypeChange?.(v);
+      });
+    });
+    const listEl = container.createEl("div", { cls: "xyw-child-list" });
+    const emptyEl = container.createEl("p", { cls: "xyw-empty-state", text: t("msg-no-children") });
+    const refreshList = () => {
+      listEl.empty();
+      emptyEl.style.display = children.length ? "none" : "";
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
+        card.draggable = true;
+        card.addEventListener("dragstart", (e) => {
+          e.dataTransfer?.setData("text/plain", String(i));
+          card.addClass("xyw-dragging");
+        });
+        card.addEventListener("dragend", () => {
+          card.removeClass("xyw-dragging");
+          listEl.querySelectorAll(".drag-over").forEach((el) => el.removeClass("drag-over"));
+        });
+        card.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          card.addClass("drag-over");
+        });
+        card.addEventListener("dragleave", () => {
+          card.removeClass("drag-over");
+        });
+        card.addEventListener("drop", (e) => {
+          e.preventDefault();
+          card.removeClass("drag-over");
+          const from = parseInt(e.dataTransfer?.getData("text/plain") ?? "-1");
+          if (from >= 0 && from !== i) {
+            const [item] = children.splice(from, 1);
+            const to = from < i ? i - 1 : i;
+            children.splice(to, 0, item);
+            refreshList();
+          }
+        });
+        const label = card.createEl("span", {
+          cls: "xyw-child-label-simple",
+          text: `${i + 1}. ${child.name} (${t(`type-${child.type}`)})`
+        });
+        const acts = card.createEl("div", { cls: "xyw-child-actions-simple" });
+        this.addChildActions(acts, children, i, listEl);
+      }
+    };
+    refreshList();
+    return refreshList;
+  }
+  addChildActions(acts, children, i, listEl) {
+    const refreshList = () => {
+      listEl.empty();
+      for (let j = 0; j < children.length; j++) {
+        const child = children[j];
+        const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
+        card.draggable = true;
+        card.addEventListener("dragstart", (e) => {
+          e.dataTransfer?.setData("text/plain", String(j));
+          card.addClass("xyw-dragging");
+        });
+        card.addEventListener("dragend", () => {
+          card.removeClass("xyw-dragging");
+          listEl.querySelectorAll(".drag-over").forEach((el) => el.removeClass("drag-over"));
+        });
+        card.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          card.addClass("drag-over");
+        });
+        card.addEventListener("dragleave", () => {
+          card.removeClass("drag-over");
+        });
+        card.addEventListener("drop", (e) => {
+          e.preventDefault();
+          card.removeClass("drag-over");
+          const from = parseInt(e.dataTransfer?.getData("text/plain") ?? "-1");
+          if (from >= 0 && from !== j) {
+            const [item] = children.splice(from, 1);
+            const to = from < j ? j - 1 : j;
+            children.splice(to, 0, item);
+            refreshList();
+          }
+        });
+        const label = card.createEl("span", {
+          cls: "xyw-child-label-simple",
+          text: `${j + 1}. ${child.name} (${t(`type-${child.type}`)})`
+        });
+        const acts2 = card.createEl("div", { cls: "xyw-child-actions-simple" });
+        this.addChildActions(acts2, children, j, listEl);
+      }
+    };
+    new import_obsidian2.ButtonComponent(acts).setIcon("copy").setTooltip("Duplicate").onClick(() => {
+      const copy = JSON.parse(JSON.stringify(children[i]));
+      children.splice(i + 1, 0, copy);
+      refreshList();
+    });
+    new import_obsidian2.ButtonComponent(acts).setIcon("pencil").setTooltip(t("btn-edit")).onClick(async () => {
+      const modal = new ChildEditorModal(this.app, children[i]);
+      const result = await modal.openAndGet();
+      if (result) {
+        children[i] = result;
+        refreshList();
+      }
+    });
+    new import_obsidian2.ButtonComponent(acts).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(() => {
+      children.splice(i, 1);
+      refreshList();
+    });
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
+// src/renderer/CodeBlockRenderer.ts
+var import_obsidian3 = require("obsidian");
+var CodeBlockRenderer = class {
+  constructor(store, plugin) {
+    this.store = store;
+    this.plugin = plugin;
   }
   async render(source, container) {
     container.empty();
@@ -660,6 +991,14 @@ var CodeBlockRenderer = class {
       container.empty();
       container.createEl("div", { cls: "xyw-error", text: `Render error: ${e.message}` });
     }
+    const editBtn = container.createEl("button", { cls: "xyw-edit-overlay" });
+    (0, import_obsidian3.setIcon)(editBtn, "pencil");
+    editBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      new WidgetEditorModal(this.plugin.app, this.plugin, this.store, data.id, () => {
+        this.render(source, container);
+      }).open();
+    });
   }
   parseSource(source) {
     const lines = source.trim().split("\n");
@@ -683,8 +1022,8 @@ var CodeBlockRenderer = class {
 };
 
 // src/ui/WidgetPickerModal.ts
-var import_obsidian = require("obsidian");
-var WidgetPickerModal = class extends import_obsidian.Modal {
+var import_obsidian4 = require("obsidian");
+var WidgetPickerModal = class extends import_obsidian4.Modal {
   constructor(app, store, onSelect) {
     super(app);
     this.store = store;
@@ -718,279 +1057,8 @@ var WidgetPickerModal = class extends import_obsidian.Modal {
 };
 
 // src/settings.ts
-var import_obsidian2 = require("obsidian");
-var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
-function isContainerType(type) {
-  return CONTAINER_TYPES.has(type);
-}
-var ChildEditorModal = class extends import_obsidian2.Modal {
-  constructor(app, existing) {
-    super(app);
-    this.existing = existing;
-    this.result = null;
-    this.resolve = null;
-  }
-  async openAndGet() {
-    return new Promise((resolve) => {
-      this.resolve = resolve;
-      this.open();
-    });
-  }
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("xyw-editor-modal");
-    const isNew = !this.existing;
-    contentEl.createEl("h2", { text: isNew ? t("btn-add-child") : t("btn-edit") });
-    let name = this.existing?.name ?? "";
-    let type = this.existing?.type ?? "stats-card";
-    let settings = this.existing?.settings ? { ...this.existing.settings } : {};
-    let children = this.existing?.children ? JSON.parse(JSON.stringify(this.existing.children)) : [];
-    new import_obsidian2.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
-      name = v;
-    }));
-    new import_obsidian2.Setting(contentEl).setName(t("label-type")).addDropdown((dd) => {
-      for (const m of getAllWidgetMetas()) {
-        dd.addOption(m.type, t(`type-${m.type}`));
-      }
-      dd.setValue(type);
-      dd.onChange((v) => {
-        type = v;
-        settings = {};
-        const meta2 = getWidgetMeta(type);
-        if (meta2) {
-          for (const field of meta2.settingSchema) {
-            settings[field.key] = field.defaultValue;
-          }
-        }
-        if (!isContainerType(type))
-          children = [];
-        this.close();
-        new ChildEditorModal(this.app, { name, type, settings, children: children.length ? children : void 0 }).open();
-      });
-    });
-    const meta = getWidgetMeta(type);
-    if (meta && meta.settingSchema.length > 0) {
-      contentEl.createEl("h3", { text: t("label-config") });
-      for (const field of meta.settingSchema) {
-        const setting = new import_obsidian2.Setting(contentEl).setName(t(field.labelKey));
-        const currentVal = settings[field.key] ?? field.defaultValue;
-        switch (field.type) {
-          case "text":
-            setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-              settings[field.key] = v;
-            }));
-            break;
-          case "number":
-            setting.addText((t3) => {
-              t3.setPlaceholder(field.placeholder ?? "0");
-              t3.setValue(String(currentVal));
-              t3.inputEl.type = "number";
-              t3.onChange((v) => {
-                settings[field.key] = Number(v) || 0;
-              });
-            });
-            break;
-          case "textarea":
-            setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-              settings[field.key] = v;
-            }));
-            break;
-          case "select":
-            if (field.options) {
-              setting.addDropdown((dd) => {
-                for (const opt of field.options)
-                  dd.addOption(opt.value, opt.label);
-                dd.setValue(String(currentVal));
-                dd.onChange((v) => {
-                  settings[field.key] = v;
-                });
-              });
-            }
-            break;
-        }
-      }
-    }
-    new import_obsidian2.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-save")).setCta().onClick(() => {
-      if (!name.trim()) {
-        new import_obsidian2.Notice("Name is required");
-        return;
-      }
-      this.result = { name: name.trim(), type, settings };
-      if (isContainerType(type))
-        this.result.children = children;
-      this.close();
-    })).addButton((btn) => btn.setButtonText(t("btn-cancel")).onClick(() => this.close()));
-  }
-  onClose() {
-    this.contentEl.empty();
-    if (this.resolve)
-      this.resolve(this.result);
-  }
-};
-var WidgetEditorModal = class extends import_obsidian2.Modal {
-  constructor(app, plugin, store, editId, onSaved) {
-    super(app);
-    this.plugin = plugin;
-    this.store = store;
-    this.editId = editId;
-    this.onSaved = onSaved;
-  }
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("xyw-editor-modal");
-    const existing = this.editId ? this.store.getWidget(this.editId) : null;
-    const isNew = !existing;
-    contentEl.createEl("h2", { text: isNew ? t("title-new-widget") : t("title-edit-widget") });
-    let name = existing?.name ?? "";
-    let type = existing?.type ?? "stats-card";
-    let settings = existing?.settings ? { ...existing.settings } : {};
-    let children = existing?.children ? JSON.parse(JSON.stringify(existing.children)) : [];
-    new import_obsidian2.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
-      name = v;
-    }));
-    if (isNew) {
-      new import_obsidian2.Setting(contentEl).setName(t("label-type")).addDropdown((dd) => {
-        for (const m of getAllWidgetMetas()) {
-          dd.addOption(m.type, t(`type-${m.type}`));
-        }
-        dd.setValue(type);
-        dd.onChange((v) => {
-          type = v;
-          settings = {};
-          const meta2 = getWidgetMeta(type);
-          if (meta2)
-            for (const field of meta2.settingSchema)
-              settings[field.key] = field.defaultValue;
-          if (!isContainerType(type))
-            children = [];
-          this.close();
-          new WidgetEditorModal(this.app, this.plugin, this.store, this.editId, this.onSaved).open();
-        });
-      });
-    } else {
-      new import_obsidian2.Setting(contentEl).setName(t("label-type")).setDesc(t(`type-${existing.type}`));
-    }
-    if (isContainerType(type)) {
-      contentEl.createEl("h3", { text: t("label-children") });
-      if (!children.length) {
-        contentEl.createEl("p", { cls: "xyw-empty-state", text: t("msg-no-children") });
-      }
-      const listEl = contentEl.createEl("div", { cls: "xyw-child-list" });
-      const refreshList = () => {
-        listEl.empty();
-        for (let i = 0; i < children.length; i++) {
-          const child = children[i];
-          const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
-          const label = card.createEl("span", {
-            cls: "xyw-child-label-simple",
-            text: `${i + 1}. ${child.name} (${t(`type-${child.type}`)})`
-          });
-          const acts = card.createEl("div", { cls: "xyw-child-actions-simple" });
-          new import_obsidian2.ButtonComponent(acts).setIcon("arrow-up").setTooltip("Move up").onClick(() => {
-            if (i > 0) {
-              [children[i - 1], children[i]] = [children[i], children[i - 1]];
-              refreshList();
-            }
-          });
-          new import_obsidian2.ButtonComponent(acts).setIcon("arrow-down").setTooltip("Move down").onClick(() => {
-            if (i < children.length - 1) {
-              [children[i], children[i + 1]] = [children[i + 1], children[i]];
-              refreshList();
-            }
-          });
-          new import_obsidian2.ButtonComponent(acts).setIcon("pencil").setTooltip(t("btn-edit")).onClick(async () => {
-            const modal = new ChildEditorModal(this.app, child);
-            const result = await modal.openAndGet();
-            if (result) {
-              children[i] = result;
-              refreshList();
-            }
-          });
-          new import_obsidian2.ButtonComponent(acts).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(() => {
-            children.splice(i, 1);
-            refreshList();
-          });
-        }
-      };
-      refreshList();
-      new import_obsidian2.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-add-child")).setCta().onClick(async () => {
-        const modal = new ChildEditorModal(this.app, null);
-        const result = await modal.openAndGet();
-        if (result) {
-          children.push(result);
-          refreshList();
-        }
-      }));
-    }
-    const meta = getWidgetMeta(type);
-    if (meta && meta.settingSchema.length > 0) {
-      contentEl.createEl("h3", { text: t("label-config") });
-      for (const field of meta.settingSchema) {
-        const setting = new import_obsidian2.Setting(contentEl).setName(t(field.labelKey));
-        const currentVal = settings[field.key] ?? field.defaultValue;
-        switch (field.type) {
-          case "text":
-            setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-              settings[field.key] = v;
-            }));
-            break;
-          case "number":
-            setting.addText((t3) => {
-              t3.setPlaceholder(field.placeholder ?? "0");
-              t3.setValue(String(currentVal));
-              t3.inputEl.type = "number";
-              t3.onChange((v) => {
-                settings[field.key] = Number(v) || 0;
-              });
-            });
-            break;
-          case "textarea":
-            setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-              settings[field.key] = v;
-            }));
-            break;
-          case "select":
-            if (field.options) {
-              setting.addDropdown((dd) => {
-                for (const opt of field.options)
-                  dd.addOption(opt.value, opt.label);
-                dd.setValue(String(currentVal));
-                dd.onChange((v) => {
-                  settings[field.key] = v;
-                });
-              });
-            }
-            break;
-        }
-      }
-    }
-    new import_obsidian2.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-save")).setCta().onClick(async () => {
-      if (!name.trim()) {
-        new import_obsidian2.Notice("Name is required");
-        return;
-      }
-      const data = { name: name.trim(), type, settings };
-      if (isContainerType(type))
-        data.children = children;
-      if (isNew) {
-        const saved = await this.store.addWidget(data);
-        new import_obsidian2.Notice(t("btn-save"));
-        this.onSaved(saved);
-      } else {
-        await this.store.updateWidget(this.editId, data);
-        new import_obsidian2.Notice(t("btn-save"));
-        this.onSaved();
-      }
-      this.close();
-    })).addButton((btn) => btn.setButtonText(t("btn-cancel")).onClick(() => this.close()));
-  }
-  onClose() {
-    this.contentEl.empty();
-  }
-};
-var WidgetSettingTab = class extends import_obsidian2.PluginSettingTab {
+var import_obsidian5 = require("obsidian");
+var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin, store) {
     super(app, plugin);
     this.plugin = plugin;
@@ -1000,8 +1068,8 @@ var WidgetSettingTab = class extends import_obsidian2.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: t("settings-widget-mgr") });
-    new import_obsidian2.Setting(containerEl).setDesc(t("codeblock-hint"));
-    new import_obsidian2.Setting(containerEl).addButton((btn) => btn.setButtonText(t("btn-new-widget")).setCta().onClick(() => {
+    new import_obsidian5.Setting(containerEl).setDesc(t("codeblock-hint"));
+    new import_obsidian5.Setting(containerEl).addButton((btn) => btn.setButtonText(t("btn-new-widget")).setCta().onClick(() => {
       new WidgetEditorModal(this.app, this.plugin, this.store, null, () => this.display()).open();
     })).addButton((btn) => btn.setButtonText(t("btn-export")).onClick(() => {
       const data = this.store.exportWidgets();
@@ -1024,19 +1092,19 @@ var WidgetSettingTab = class extends import_obsidian2.PluginSettingTab {
           const data = JSON.parse(text);
           const arr = Array.isArray(data) ? data : data.widgets ?? [];
           if (!arr.length) {
-            new import_obsidian2.Notice("No valid widgets found.");
+            new import_obsidian5.Notice("No valid widgets found.");
             return;
           }
           const count = await this.store.importWidgets(arr);
-          new import_obsidian2.Notice(t2("msg-import-success", { n: String(count) }));
+          new import_obsidian5.Notice(t2("msg-import-success", { n: String(count) }));
           this.display();
         } catch (e) {
-          new import_obsidian2.Notice("Import failed: " + e.message);
+          new import_obsidian5.Notice("Import failed: " + e.message);
         }
       };
       input.click();
     }));
-    const widgets = this.store.getWidgets();
+    const widgets = this.store.getWidgets().filter((w) => isContainerType(w.type));
     if (!widgets.length) {
       containerEl.createEl("p", { cls: "xyw-empty-state", text: t("label-no-widgets") });
       return;
@@ -1051,15 +1119,15 @@ var WidgetSettingTab = class extends import_obsidian2.PluginSettingTab {
       info.createEl("div", { cls: "xyw-widget-name", text: w.name });
       info.createEl("div", { cls: "xyw-widget-meta", text: parts.join(" \xB7 ") });
       const actions = item.createEl("div", { cls: "xyw-widget-actions" });
-      new import_obsidian2.ButtonComponent(actions).setIcon("clipboard-copy").setTooltip("Copy code block").onClick(() => {
+      new import_obsidian5.ButtonComponent(actions).setIcon("clipboard-copy").setTooltip("Copy code block").onClick(() => {
         navigator.clipboard.writeText(`\`\`\`xiaoyuanwidget
 id: ${w.id}
-\`\`\``).then(() => new import_obsidian2.Notice(t("msg-copied")));
+\`\`\``).then(() => new import_obsidian5.Notice(t("msg-copied")));
       });
-      new import_obsidian2.ButtonComponent(actions).setIcon("pencil").setTooltip(t("btn-edit")).onClick(() => {
+      new import_obsidian5.ButtonComponent(actions).setIcon("pencil").setTooltip(t("btn-edit")).onClick(() => {
         new WidgetEditorModal(this.app, this.plugin, this.store, w.id, () => this.display()).open();
       });
-      new import_obsidian2.ButtonComponent(actions).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(async () => {
+      new import_obsidian5.ButtonComponent(actions).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(async () => {
         if (confirm(t2("msg-confirm-delete", { name: w.name }))) {
           await this.store.deleteWidget(w.id);
           this.display();
@@ -1070,7 +1138,7 @@ id: ${w.id}
 };
 
 // src/main.ts
-var WidgetPlugin = class extends import_obsidian3.Plugin {
+var WidgetPlugin = class extends import_obsidian6.Plugin {
   async onload() {
     const lang = getLang();
     setLang(lang);
@@ -1078,7 +1146,7 @@ var WidgetPlugin = class extends import_obsidian3.Plugin {
       () => this.loadData(),
       (data) => this.saveData(data)
     );
-    this.renderer = new CodeBlockRenderer(this.store);
+    this.renderer = new CodeBlockRenderer(this.store, this);
     this.registerWidgetTypes();
     this.registerCodeBlockProcessor();
     this.registerContextMenu();
@@ -1233,7 +1301,10 @@ var WidgetPlugin = class extends import_obsidian3.Plugin {
             }).open();
           });
         });
-        const widgets = this.store.getWidgets();
+        const widgets = this.store.getWidgets().filter((w) => {
+          const containerTypes = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
+          return containerTypes.has(w.type);
+        });
         if (widgets.length === 0) {
           rootSub.addItem((item) => {
             item.setTitle(t("label-no-widgets"));

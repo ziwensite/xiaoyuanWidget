@@ -8,7 +8,7 @@ export class DataviewListWidget extends BaseWidget {
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
     container.addClass('xyw-dv-list');
-    container.createEl('div', { cls: 'xyw-card-title', text: config.title || t('type-dv-list') });
+    container.createEl('div', { cls: 'xyw-card-title', text: config.title || 'Dataview List' });
 
     const dv = DataviewBridge.getInstance();
     if (!dv.isAvailable()) {
@@ -32,7 +32,8 @@ export class DataviewListWidget extends BaseWidget {
       const list = container.createEl('ul', { cls: 'xyw-list' });
       for (const row of values) {
         const item = list.createEl('li', { cls: 'xyw-list-item' });
-        item.textContent = row[0] ? String(row[0]) : '-';
+        const text = row.map((v: any) => v != null ? String(v) : '-').join(' · ');
+        item.textContent = text;
       }
     } catch (e: any) {
       container.createEl('div', { cls: 'xyw-error', text: t2('msg-dataview-query-error', { msg: e.message }) });

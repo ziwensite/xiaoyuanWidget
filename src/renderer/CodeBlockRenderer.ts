@@ -1,13 +1,17 @@
 import { WidgetStore } from '../store/WidgetStore';
 import { createWidget } from '../widgets/registry';
 import { WidgetCodeBlockData } from '../types';
-import { t } from '../i18n';
+import type WidgetPlugin from '../main';
+import { WidgetEditorModal } from '../modals';
+import { setIcon } from 'obsidian';
 
 export class CodeBlockRenderer {
   private store: WidgetStore;
+  private plugin: WidgetPlugin;
 
-  constructor(store: WidgetStore) {
+  constructor(store: WidgetStore, plugin: WidgetPlugin) {
     this.store = store;
+    this.plugin = plugin;
   }
 
   async render(source: string, container: HTMLElement): Promise<void> {
@@ -45,6 +49,15 @@ export class CodeBlockRenderer {
       container.empty();
       container.createEl('div', { cls: 'xyw-error', text: `Render error: ${e.message}` });
     }
+
+    const editBtn = container.createEl('button', { cls: 'xyw-edit-overlay' });
+    setIcon(editBtn, 'pencil');
+    editBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      new WidgetEditorModal(this.plugin.app, this.plugin, this.store, data.id, () => {
+        this.render(source, container);
+      }).open();
+    });
   }
 
   private parseSource(source: string): WidgetCodeBlockData {

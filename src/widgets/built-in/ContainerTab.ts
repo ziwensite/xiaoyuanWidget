@@ -1,17 +1,18 @@
 import { WidgetConfig, ChildWidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { createWidget } from '../registry';
+import { t } from '../../i18n';
 
 export class ContainerTabWidget extends BaseWidget {
   private activeIndex = 0;
   private tabContentEl: HTMLElement | null = null;
 
-  getType(): string { return 'container-tab-h'; }
+  getType(): string { return this.config?.type ?? 'container-tab-h'; }
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
     const children = config.children ?? [];
     if (!children.length) {
-      container.createEl('div', { cls: 'xyw-empty', text: 'No children' });
+      container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-children') });
       return;
     }
 
