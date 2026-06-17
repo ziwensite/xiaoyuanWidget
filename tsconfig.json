@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "module": "ESNext",
+    "target": "ES2021",
+    "allowJs": true,
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "isolatedModules": true,
+    "strictNullChecks": true,
+    "lib": ["DOM", "ES2021"],
+    "skipLibCheck": true,
+    "paths": {
+      "obsidian-dataview": ["./node_modules/obsidian-dataview/lib/index.d.mts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

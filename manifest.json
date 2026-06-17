@@ -1,0 +1,10 @@
+{
+  "id": "xiaoyuan-widget",
+  "name": "xiaoyuanWidget",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Modular widgets for your notes — Dataview queries, stats, tag clouds and more",
+  "author": "xiaoyuan",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}

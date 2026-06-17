@@ -1,0 +1,12 @@
+{
+  "widgets": [
+    {
+      "name": "笔记数量",
+      "type": "stats-card",
+      "settings": {},
+      "id": "w_6lk2fv",
+      "createdAt": 1781660895586,
+      "updatedAt": 1781660895586
+    }
+  ]
+}
