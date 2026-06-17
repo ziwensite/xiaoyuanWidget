@@ -23,6 +23,8 @@ export class ContainerColWidget extends BaseWidget {
           title: child.name,
           settings: child.settings,
           children: child.children,
+          style: child.style,
+          filters: child.filters,
         });
       }
     }

@@ -1,13 +1,13 @@
-import { WidgetConfig, ChildWidgetConfig } from '../../types';
+import { WidgetConfig, ChildWidgetConfig, AnyWidgetType } from '../../types';
 import { BaseWidget } from '../base';
 import { createWidget } from '../registry';
 import { t } from '../../i18n';
 
-export class ContainerTabWidget extends BaseWidget {
-  private activeIndex = 0;
-  private tabContentEl: HTMLElement | null = null;
+export abstract class BaseContainerTabWidget extends BaseWidget {
+  protected activeIndex = 0;
+  protected tabContentEl: HTMLElement | null = null;
 
-  getType(): string { return this.config?.type ?? 'container-tab-h'; }
+  abstract getType(): string;
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
     const children = config.children ?? [];
@@ -59,13 +59,15 @@ export class ContainerTabWidget extends BaseWidget {
   }
 
   private async renderChildContent(container: HTMLElement, child: ChildWidgetConfig): Promise<void> {
-    const widget = createWidget(child.type as any);
+    const widget = createWidget(child.type as AnyWidgetType);
     if (widget) {
       await widget.render(container, {
-        type: child.type as any,
+        type: child.type as AnyWidgetType,
         title: child.name,
         settings: child.settings,
         children: child.children,
+        style: child.style,
+        filters: child.filters,
       });
     }
   }
@@ -75,4 +77,12 @@ export class ContainerTabWidget extends BaseWidget {
     this.activeIndex = 0;
     super.destroy();
   }
+}
+
+export class ContainerTabHWidget extends BaseContainerTabWidget {
+  getType(): string { return 'container-tab-h'; }
+}
+
+export class ContainerTabVWidget extends BaseContainerTabWidget {
+  getType(): string { return 'container-tab-v'; }
 }

@@ -2,14 +2,25 @@
   "widgets": [
     {
       "name": "笔记数量",
-      "type": "container-col",
+      "type": "container-row",
       "settings": {},
       "children": [
         {
-          "name": "今日",
+          "name": "总数",
           "type": "stats-card",
           "settings": {
-            "dimension": "today"
+            "dimension": "total"
+          },
+          "style": {
+            "width": "",
+            "height": "",
+            "title": {
+              "align": "right"
+            },
+            "content": {
+              "align": "right"
+            },
+            "borderColor": "#f70202"
           }
         },
         {
@@ -22,7 +33,7 @@
       ],
       "id": "20260617143316_wn3d",
       "createdAt": 1781677996102,
-      "updatedAt": 1781689150322
+      "updatedAt": 1781711286527
     }
   ]
 }

@@ -131,24 +131,137 @@ function getAllWidgetTypes() {
   return Array.from(metaMap.keys());
 }
 
+// src/utils/StyleUtils.ts
+function applyWidgetStyle(container, config) {
+  const style = config.style;
+  if (!style)
+    return;
+  if (style.borderColor) {
+    container.style.borderColor = style.borderColor;
+  }
+  if (style.width || style.height) {
+    container.style.flex = "none";
+  }
+  if (style.width) {
+    container.style.width = style.width;
+  }
+  if (style.height) {
+    container.style.height = style.height;
+  }
+  const titleEl = container.querySelector(".xyw-card-title");
+  if (titleEl && style.title) {
+    if (style.title.align)
+      titleEl.style.textAlign = style.title.align;
+    if (style.title.color)
+      titleEl.style.color = style.title.color;
+    if (style.title.bgColor)
+      titleEl.style.backgroundColor = style.title.bgColor;
+    if (style.title.fontSize)
+      titleEl.style.fontSize = style.title.fontSize;
+    if (style.title.fontWeight)
+      titleEl.style.fontWeight = style.title.fontWeight;
+  }
+  if (style.content) {
+    if (style.content.align)
+      container.style.textAlign = style.content.align;
+    if (style.content.color)
+      container.style.color = style.content.color;
+    if (style.content.fontSize)
+      container.style.fontSize = style.content.fontSize;
+    if (style.content.fontWeight)
+      container.style.fontWeight = style.content.fontWeight;
+  }
+}
+function getFieldValue(item, source, field) {
+  if (source === "fileprop") {
+    switch (field) {
+      case "path":
+        return item.path ?? "";
+      case "name":
+        return item.name ?? "";
+      case "ctime":
+        return String(item.stat?.ctime ?? "");
+      case "mtime":
+        return String(item.stat?.mtime ?? "");
+      case "size":
+        return String(item.stat?.size ?? "");
+      default:
+        return "";
+    }
+  }
+  if (source === "yaml") {
+    const metadata = item.metadataCache ?? item.frontmatter ?? {};
+    const val = metadata[field];
+    if (val == null)
+      return "";
+    if (Array.isArray(val))
+      return val.join(", ");
+    return String(val);
+  }
+  return "";
+}
+function compareValue(val, operator, target) {
+  switch (operator) {
+    case "contains":
+      return val.toLowerCase().includes(target.toLowerCase());
+    case "not_contains":
+      return !val.toLowerCase().includes(target.toLowerCase());
+    case "equals":
+      return val.toLowerCase() === target.toLowerCase();
+    case "not_equals":
+      return val.toLowerCase() !== target.toLowerCase();
+    case "gt":
+      return Number(val) > Number(target);
+    case "lt":
+      return Number(val) < Number(target);
+    default:
+      return true;
+  }
+}
+function applyFilters(items, filters) {
+  if (!filters || filters.length === 0)
+    return items;
+  return items.filter((item) => {
+    let result = true;
+    for (let i = 0; i < filters.length; i++) {
+      const rule = filters[i];
+      const val = getFieldValue(item, rule.source, rule.field);
+      const matched = compareValue(val, rule.operator, rule.value);
+      if (i === 0) {
+        result = matched;
+        continue;
+      }
+      if (rule.logic === "and")
+        result = result && matched;
+      else
+        result = result || matched;
+    }
+    return result;
+  });
+}
+
 // src/widgets/base.ts
 var BaseWidget = class {
   constructor() {
     this.container = null;
     this.config = null;
+    this._active = false;
   }
   async render(container, config) {
     this.container = container;
     this.config = config;
+    this._active = true;
     container.empty();
     await this.renderContent(container, config);
+    applyWidgetStyle(container, config);
   }
   async refresh() {
-    if (this.container && this.config) {
+    if (this.container && this.config && this._active) {
       await this.render(this.container, this.config);
     }
   }
   destroy() {
+    this._active = false;
     this.container = null;
     this.config = null;
   }
@@ -202,6 +315,8 @@ var translations = {
   "type-container-col": { en: "Column", zh: "\u5217\u6392\u5217" },
   "type-container-tab-h": { en: "Horizontal Tabs", zh: "\u6807\u7B7E\u6C34\u5E73\u6392\u5217" },
   "type-container-tab-v": { en: "Vertical Tabs", zh: "\u6807\u7B7E\u5782\u76F4\u6392\u5217" },
+  "type-backlinks": { en: "Backlinks", zh: "\u53CD\u5411\u94FE\u63A5" },
+  "type-random-note": { en: "Random Note", zh: "\u968F\u673A\u7B14\u8BB0" },
   "stats-total-notes": { en: "Total Notes", zh: "\u7B14\u8BB0\u603B\u6570" },
   "stats-today": { en: "Created Today", zh: "\u4ECA\u65E5\u65B0\u5EFA" },
   "stats-week": { en: "This Week", zh: "\u672C\u5468\u65B0\u5EFA" },
@@ -218,6 +333,41 @@ var translations = {
   "btn-add-child": { en: "Add Child", zh: "\u6DFB\u52A0\u5B50\u6302\u4EF6" },
   "btn-switch-type-warn": { en: "Switching to a non-container type will clear all children. Continue?", zh: "\u5207\u6362\u4E3A\u975E\u5BB9\u5668\u7C7B\u578B\u5C06\u6E05\u9664\u6240\u6709\u5B50\u6302\u4EF6\uFF0C\u662F\u5426\u7EE7\u7EED\uFF1F" },
   "msg-no-children": { en: 'No children. Click "Add Child" to add one.', zh: '\u6682\u65E0\u5B50\u6302\u4EF6\uFF0C\u70B9\u51FB"\u6DFB\u52A0\u5B50\u6302\u4EF6"\u6DFB\u52A0\u3002' },
+  "style-title": { en: "Title Style", zh: "\u6807\u9898\u6837\u5F0F" },
+  "style-title-align": { en: "Title Align", zh: "\u6807\u9898\u5BF9\u9F50" },
+  "style-title-color": { en: "Title Color", zh: "\u6807\u9898\u6587\u5B57\u989C\u8272" },
+  "style-title-bg": { en: "Title Background", zh: "\u6807\u9898\u80CC\u666F\u8272" },
+  "style-title-size": { en: "Title Font Size", zh: "\u6807\u9898\u6587\u5B57\u5927\u5C0F" },
+  "style-title-weight": { en: "Title Font Weight", zh: "\u6807\u9898\u6587\u5B57\u7C97\u7EC6" },
+  "style-content": { en: "Content Style", zh: "\u5185\u5BB9\u6837\u5F0F" },
+  "style-content-align": { en: "Content Align", zh: "\u5185\u5BB9\u5BF9\u9F50" },
+  "style-content-color": { en: "Content Color", zh: "\u5185\u5BB9\u6587\u5B57\u989C\u8272" },
+  "style-content-size": { en: "Content Font Size", zh: "\u5185\u5BB9\u6587\u5B57\u5927\u5C0F" },
+  "style-content-weight": { en: "Content Font Weight", zh: "\u5185\u5BB9\u6587\u5B57\u7C97\u7EC6" },
+  "style-border-color": { en: "Border Color", zh: "\u8FB9\u6846\u989C\u8272" },
+  "style-width": { en: "Width", zh: "\u5BBD\u5EA6" },
+  "style-height": { en: "Height", zh: "\u9AD8\u5EA6" },
+  "style-align-left": { en: "Left", zh: "\u5DE6\u5BF9\u9F50" },
+  "style-align-center": { en: "Center", zh: "\u5C45\u4E2D" },
+  "style-align-right": { en: "Right", zh: "\u53F3\u5BF9\u9F50" },
+  "weight-default": { en: "Default", zh: "\u9ED8\u8BA4" },
+  "weight-normal": { en: "Normal", zh: "\u5E38\u89C4" },
+  "weight-bold": { en: "Bold", zh: "\u7C97\u4F53" },
+  "filter-title": { en: "Filter", zh: "\u7B5B\u9009" },
+  "filter-add": { en: "Add Filter", zh: "\u6DFB\u52A0\u7B5B\u9009\u6761\u4EF6" },
+  "filter-source": { en: "Source", zh: "\u6765\u6E90" },
+  "filter-source-yaml": { en: "YAML Property", zh: "YAML \u5C5E\u6027" },
+  "filter-source-fileprop": { en: "File Property", zh: "\u6587\u4EF6\u5C5E\u6027" },
+  "filter-field": { en: "Field", zh: "\u5B57\u6BB5" },
+  "filter-operator": { en: "Operator", zh: "\u64CD\u4F5C\u7B26" },
+  "filter-op-contains": { en: "contains", zh: "\u5305\u542B" },
+  "filter-op-not_contains": { en: "not contains", zh: "\u4E0D\u5305\u542B" },
+  "filter-op-equals": { en: "equals", zh: "\u7B49\u4E8E" },
+  "filter-op-not_equals": { en: "not equals", zh: "\u4E0D\u7B49\u4E8E" },
+  "filter-op-gt": { en: "greater than", zh: "\u5927\u4E8E" },
+  "filter-op-lt": { en: "less than", zh: "\u5C0F\u4E8E" },
+  "filter-value": { en: "Value", zh: "\u503C" },
+  "filter-logic": { en: "Logic", zh: "\u903B\u8F91" },
   "context-insert-widget": { en: "xiaoyuanWidget", zh: "\u5C0F\u5143\u6302\u4EF6" },
   "context-new-widget": { en: "New Widget", zh: "\u65B0\u5EFA" },
   "context-insert-wgt": { en: "Insert Widget", zh: "\u63D2\u5165" },
@@ -250,7 +400,8 @@ var StatsCardWidget = class extends BaseWidget {
     if (!app)
       return;
     const vault = app.vault;
-    const files = vault.getMarkdownFiles();
+    let files = vault.getMarkdownFiles();
+    files = applyFilters(files, config.filters);
     const dimension = config.settings.dimension ?? "total";
     let value;
     let label;
@@ -298,6 +449,7 @@ var RecentFilesWidget = class extends BaseWidget {
     const limit = config.settings.limit ?? 10;
     const excludeFolders = (config.settings.excludeFolders ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     let files = vault.getMarkdownFiles();
+    files = applyFilters(files, config.filters);
     files = files.filter((f) => {
       if (!excludeFolders.length)
         return true;
@@ -332,9 +484,10 @@ var TagCloudWidget = class extends BaseWidget {
       return;
     const vault = app.vault;
     const minCount = config.settings.minCount ?? 1;
-    const tagCount = /* @__PURE__ */ new Map();
-    const files = vault.getMarkdownFiles();
+    let files = vault.getMarkdownFiles();
+    files = applyFilters(files, config.filters);
     const cache = app.metadataCache;
+    const tagCount = /* @__PURE__ */ new Map();
     for (const file of files) {
       const metadata = cache.getFileCache(file);
       if (!metadata)
@@ -414,28 +567,18 @@ var DataviewBridge = class {
       return null;
     }
   }
-  async executeQuery(query) {
+  async query(query) {
     const dv = this.getAPI();
     if (!dv)
       throw new Error("Dataview not available");
     const result = dv.query(query);
-    if (result && result.successful && result.value) {
-      return result.value.values ?? [];
-    }
-    return [];
-  }
-  async executeTableQuery(query) {
-    const dv = this.getAPI();
-    if (!dv)
-      throw new Error("Dataview not available");
-    const result = dv.query(query);
-    if (result && result.successful && result.value) {
-      return {
-        headers: result.value.headers ?? [],
-        values: result.value.values ?? []
-      };
-    }
-    return null;
+    if (!result || !result.successful || !result.value)
+      return null;
+    return {
+      type: result.value.type ?? "list",
+      headers: result.value.headers ?? [],
+      values: result.value.values ?? []
+    };
   }
 };
 
@@ -458,7 +601,7 @@ var DataviewTableWidget = class extends BaseWidget {
       return;
     }
     try {
-      const result = await dv.executeTableQuery(query);
+      const result = await dv.query(query);
       if (!result || !result.values.length) {
         container.createEl("div", { cls: "xyw-empty", text: t("msg-no-data") });
         return;
@@ -477,7 +620,8 @@ var DataviewTableWidget = class extends BaseWidget {
         }
       }
     } catch (e) {
-      container.createEl("div", { cls: "xyw-error", text: t2("msg-dataview-query-error", { msg: e.message }) });
+      const message = e instanceof Error ? e.message : String(e);
+      container.createEl("div", { cls: "xyw-error", text: t2("msg-dataview-query-error", { msg: message }) });
     }
   }
 };
@@ -501,19 +645,20 @@ var DataviewListWidget = class extends BaseWidget {
       return;
     }
     try {
-      const values = await dv.executeQuery(query);
-      if (!values || !values.length) {
+      const result = await dv.query(query);
+      if (!result || !result.values.length) {
         container.createEl("div", { cls: "xyw-empty", text: t("msg-no-data") });
         return;
       }
       const list = container.createEl("ul", { cls: "xyw-list" });
-      for (const row of values) {
+      for (const row of result.values) {
         const item = list.createEl("li", { cls: "xyw-list-item" });
         const text = row.map((v) => v != null ? String(v) : "-").join(" \xB7 ");
         item.textContent = text;
       }
     } catch (e) {
-      container.createEl("div", { cls: "xyw-error", text: t2("msg-dataview-query-error", { msg: e.message }) });
+      const message = e instanceof Error ? e.message : String(e);
+      container.createEl("div", { cls: "xyw-error", text: t2("msg-dataview-query-error", { msg: message }) });
     }
   }
 };
@@ -538,7 +683,9 @@ var ContainerRowWidget = class extends BaseWidget {
           type: child.type,
           title: child.name,
           settings: child.settings,
-          children: child.children
+          children: child.children,
+          style: child.style,
+          filters: child.filters
         });
       }
     }
@@ -565,7 +712,9 @@ var ContainerColWidget = class extends BaseWidget {
           type: child.type,
           title: child.name,
           settings: child.settings,
-          children: child.children
+          children: child.children,
+          style: child.style,
+          filters: child.filters
         });
       }
     }
@@ -573,14 +722,11 @@ var ContainerColWidget = class extends BaseWidget {
 };
 
 // src/widgets/built-in/ContainerTab.ts
-var ContainerTabWidget = class extends BaseWidget {
+var BaseContainerTabWidget = class extends BaseWidget {
   constructor() {
     super(...arguments);
     this.activeIndex = 0;
     this.tabContentEl = null;
-  }
-  getType() {
-    return this.config?.type ?? "container-tab-h";
   }
   async renderContent(container, config) {
     const children = config.children ?? [];
@@ -631,7 +777,9 @@ var ContainerTabWidget = class extends BaseWidget {
         type: child.type,
         title: child.name,
         settings: child.settings,
-        children: child.children
+        children: child.children,
+        style: child.style,
+        filters: child.filters
       });
     }
   }
@@ -641,13 +789,83 @@ var ContainerTabWidget = class extends BaseWidget {
     super.destroy();
   }
 };
+var ContainerTabHWidget = class extends BaseContainerTabWidget {
+  getType() {
+    return "container-tab-h";
+  }
+};
+var ContainerTabVWidget = class extends BaseContainerTabWidget {
+  getType() {
+    return "container-tab-v";
+  }
+};
+
+// src/widgets/built-in/Backlinks.ts
+var BacklinksWidget = class extends BaseWidget {
+  getType() {
+    return "backlinks";
+  }
+  async renderContent(container, config) {
+    const app = window.app;
+    const activeFile = app.workspace.getActiveFile();
+    if (!activeFile) {
+      container.createEl("div", { cls: "xyw-empty", text: "No active file" });
+      return;
+    }
+    const resolvedLinks = app.metadataCache.resolvedLinks ?? {};
+    const backlinkFiles = [];
+    for (const [path, links] of Object.entries(resolvedLinks)) {
+      if (links[activeFile.path]) {
+        const f = app.vault.getAbstractFileByPath(path);
+        if (f)
+          backlinkFiles.push(f);
+      }
+    }
+    let filtered = applyFilters(backlinkFiles, config.filters);
+    container.addClass("xyw-recent-files");
+    container.createEl("div", { cls: "xyw-card-title", text: config.title || t("type-backlinks") });
+    if (!filtered.length) {
+      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-data") });
+      return;
+    }
+    const list = container.createEl("ul", { cls: "xyw-file-list" });
+    for (const f of filtered) {
+      const item = list.createEl("li", { cls: "xyw-file-item", text: f.path });
+      item.addEventListener("click", () => {
+        app.workspace.getLeaf(false).openFile(f);
+      });
+    }
+  }
+};
+
+// src/widgets/built-in/RandomNote.ts
+var RandomNoteWidget = class extends BaseWidget {
+  getType() {
+    return "random-note";
+  }
+  async renderContent(container, config) {
+    const app = window.app;
+    const files = app.vault.getMarkdownFiles();
+    if (!files.length) {
+      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-data") });
+      return;
+    }
+    container.addClass("xyw-recent-files");
+    container.createEl("div", { cls: "xyw-card-title", text: config.title || t("type-random-note") });
+    const randomFile = files[Math.floor(Math.random() * files.length)];
+    const item = container.createEl("div", { cls: "xyw-file-item", text: randomFile.name });
+    item.addEventListener("click", () => {
+      app.workspace.getLeaf(false).openFile(randomFile);
+    });
+  }
+};
 
 // src/modals/ChildEditorModal.ts
 var import_obsidian = require("obsidian");
 
 // src/modals/_shared.ts
 var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
-var LEAF_TYPES = /* @__PURE__ */ new Set(["stats-card", "recent-files", "tag-cloud", "dv-table", "dv-list"]);
+var LEAF_TYPES = /* @__PURE__ */ new Set(["stats-card", "recent-files", "tag-cloud", "dv-table", "dv-list", "backlinks", "random-note"]);
 function isContainerType(type) {
   return CONTAINER_TYPES.has(type);
 }
@@ -673,23 +891,19 @@ var ChildEditorModal = class extends import_obsidian.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("xyw-editor-modal");
-    const isNew = !this.existing;
-    contentEl.createEl("h2", { text: isNew ? t("btn-add-child") : t("btn-edit") });
     let name = this.existing?.name ?? "";
     let type = this.existing?.type ?? "stats-card";
     let settings = this.existing?.settings ? { ...this.existing.settings } : {};
     let children = this.existing?.children ? JSON.parse(JSON.stringify(this.existing.children)) : [];
-    new import_obsidian.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
-      name = v;
-    }));
-    new import_obsidian.Setting(contentEl).setName(t("label-type")).addDropdown((dd) => {
-      for (const m of getAllWidgetMetas()) {
-        if (isLeafType(m.type)) {
-          dd.addOption(m.type, t(`type-${m.type}`));
-        }
-      }
-      dd.setValue(type);
-      dd.onChange((v) => {
+    const extra = {
+      style: this.existing?.style ? JSON.parse(JSON.stringify(this.existing.style)) : void 0,
+      filters: this.existing?.filters ? JSON.parse(JSON.stringify(this.existing.filters)) : []
+    };
+    this.settingsContainerEl = contentEl.createEl("div");
+    const renderSettingsWithState = () => {
+      this.renderSettings(type, settings, name, (v) => {
+        name = v;
+      }, (v) => {
         type = v;
         settings = {};
         const meta = getWidgetMeta(type);
@@ -700,11 +914,16 @@ var ChildEditorModal = class extends import_obsidian.Modal {
         }
         if (!isContainerType(type))
           children = [];
-        this.renderSettings(type, settings);
-      });
-    });
-    this.settingsContainerEl = contentEl.createEl("div");
-    this.renderSettings(type, settings);
+        renderSettingsWithState();
+      }, extra);
+    };
+    renderSettingsWithState();
+    this.styleContainerEl = contentEl.createEl("div");
+    this.renderTitleStyle(extra);
+    this.contentStyleContainerEl = contentEl.createEl("div");
+    this.renderContentStyle(extra);
+    this.filterContainerEl = contentEl.createEl("div");
+    this.renderFilterSection(extra);
     new import_obsidian.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-save")).setCta().onClick(() => {
       if (!name.trim()) {
         new import_obsidian.Notice("Name is required");
@@ -713,52 +932,347 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       this.result = { name: name.trim(), type, settings };
       if (isContainerType(type))
         this.result.children = children;
+      if (extra.style && Object.keys(extra.style).length > 0)
+        this.result.style = extra.style;
+      if (extra.filters.length > 0)
+        this.result.filters = extra.filters;
       this.close();
     })).addButton((btn) => btn.setButtonText(t("btn-cancel")).onClick(() => this.close()));
   }
-  renderSettings(type, settings) {
+  renderSettings(type, settings, name, setName, onTypeChange, extra) {
     this.settingsContainerEl.empty();
-    const meta = getWidgetMeta(type);
-    if (!meta || meta.settingSchema.length === 0)
-      return;
     this.settingsContainerEl.createEl("h3", { text: t("label-config") });
-    for (const field of meta.settingSchema) {
-      const setting = new import_obsidian.Setting(this.settingsContainerEl).setName(t(field.labelKey));
-      const currentVal = settings[field.key] ?? field.defaultValue;
-      switch (field.type) {
-        case "text":
-          setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-            settings[field.key] = v;
-          }));
-          break;
-        case "number":
-          setting.addText((t3) => {
-            t3.setPlaceholder(field.placeholder ?? "0");
-            t3.setValue(String(currentVal));
-            t3.inputEl.type = "number";
-            t3.onChange((v) => {
-              settings[field.key] = Number(v) || 0;
-            });
-          });
-          break;
-        case "textarea":
-          setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-            settings[field.key] = v;
-          }));
-          break;
-        case "select":
-          if (field.options) {
-            setting.addDropdown((dd) => {
-              for (const opt of field.options)
-                dd.addOption(opt.value, opt.label);
-              dd.setValue(String(currentVal));
-              dd.onChange((v) => {
-                settings[field.key] = v;
+    const card = this.settingsContainerEl.createEl("div", { cls: "xyw-config-card" });
+    new import_obsidian.Setting(card).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
+      setName(v);
+    }));
+    new import_obsidian.Setting(card).setName(t("label-type")).addDropdown((dd) => {
+      for (const m of getAllWidgetMetas()) {
+        if (isLeafType(m.type)) {
+          dd.addOption(m.type, t(`type-${m.type}`));
+        }
+      }
+      dd.setValue(type);
+      dd.onChange((v) => {
+        onTypeChange(v);
+      });
+    });
+    const meta = getWidgetMeta(type);
+    if (meta) {
+      for (const field of meta.settingSchema) {
+        const setting = new import_obsidian.Setting(card).setName(t(field.labelKey));
+        const currentVal = settings[field.key] ?? field.defaultValue;
+        switch (field.type) {
+          case "text":
+            setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
+              settings[field.key] = v;
+            }));
+            break;
+          case "number":
+            setting.addText((t3) => {
+              t3.setPlaceholder(field.placeholder ?? "0");
+              t3.setValue(String(currentVal));
+              t3.inputEl.type = "number";
+              t3.onChange((v) => {
+                settings[field.key] = Number(v) || 0;
               });
             });
-          }
-          break;
+            break;
+          case "textarea":
+            setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
+              settings[field.key] = v;
+            }));
+            break;
+          case "select":
+            if (field.options) {
+              const opts = field.options;
+              setting.addDropdown((dd) => {
+                for (const opt of opts)
+                  dd.addOption(opt.value, opt.label);
+                dd.setValue(String(currentVal));
+                dd.onChange((v) => {
+                  settings[field.key] = v;
+                });
+              });
+            }
+            break;
+        }
       }
+    }
+    this.renderSizeSetting(card, t("style-width"), extra, "width");
+    this.renderSizeSetting(card, t("style-height"), extra, "height");
+  }
+  renderTitleStyle(extra) {
+    this.styleContainerEl.empty();
+    this.styleContainerEl.createEl("h3", { text: t("style-title") });
+    const card = this.styleContainerEl.createEl("div", { cls: "xyw-style-section" });
+    new import_obsidian.Setting(card).setName(t("style-title-align")).addDropdown((dd) => {
+      dd.addOption("left", t("style-align-left"));
+      dd.addOption("center", t("style-align-center"));
+      dd.addOption("right", t("style-align-right"));
+      dd.setValue(extra.style?.title?.align ?? "left");
+      dd.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.title)
+          extra.style.title = {};
+        extra.style.title.align = v;
+      });
+    });
+    new import_obsidian.Setting(card).setName(t("style-title-color")).addText((tc) => {
+      tc.inputEl.type = "color";
+      tc.setValue(extra.style?.title?.color ?? "").onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.title)
+          extra.style.title = {};
+        extra.style.title.color = v;
+      });
+    });
+    new import_obsidian.Setting(card).setName(t("style-title-bg")).addText((tc) => {
+      tc.inputEl.type = "color";
+      tc.setValue(extra.style?.title?.bgColor ?? "").onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.title)
+          extra.style.title = {};
+        extra.style.title.bgColor = v;
+      });
+    });
+    new import_obsidian.Setting(card).setName(t("style-title-size")).addText((tc) => {
+      tc.inputEl.type = "number";
+      tc.inputEl.placeholder = "14";
+      tc.setValue(extra.style?.title?.fontSize?.replace(/px$/, "") ?? "");
+      tc.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.title)
+          extra.style.title = {};
+        extra.style.title.fontSize = v ? `${v}px` : "";
+      });
+    }).addDropdown((dd) => {
+      dd.addOption("px", "px");
+      dd.setValue("px");
+    });
+    new import_obsidian.Setting(card).setName(t("style-title-weight")).addDropdown((dd) => {
+      dd.addOption("", t("weight-default"));
+      dd.addOption("normal", "normal");
+      dd.addOption("bold", "bold");
+      for (let i = 100; i <= 900; i += 100)
+        dd.addOption(String(i), String(i));
+      dd.setValue(extra.style?.title?.fontWeight ?? "");
+      dd.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.title)
+          extra.style.title = {};
+        extra.style.title.fontWeight = v || void 0;
+      });
+    });
+  }
+  renderContentStyle(extra) {
+    this.contentStyleContainerEl.empty();
+    this.contentStyleContainerEl.createEl("h3", { text: t("style-content") });
+    const card = this.contentStyleContainerEl.createEl("div", { cls: "xyw-style-section" });
+    new import_obsidian.Setting(card).setName(t("style-content-align")).addDropdown((dd) => {
+      dd.addOption("left", t("style-align-left"));
+      dd.addOption("center", t("style-align-center"));
+      dd.addOption("right", t("style-align-right"));
+      dd.setValue(extra.style?.content?.align ?? "left");
+      dd.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.content)
+          extra.style.content = {};
+        extra.style.content.align = v;
+      });
+    });
+    new import_obsidian.Setting(card).setName(t("style-content-color")).addText((tc) => {
+      tc.inputEl.type = "color";
+      tc.setValue(extra.style?.content?.color ?? "").onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.content)
+          extra.style.content = {};
+        extra.style.content.color = v;
+      });
+    });
+    new import_obsidian.Setting(card).setName(t("style-content-size")).addText((tc) => {
+      tc.inputEl.type = "number";
+      tc.inputEl.placeholder = "13";
+      tc.setValue(extra.style?.content?.fontSize?.replace(/px$/, "") ?? "");
+      tc.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.content)
+          extra.style.content = {};
+        extra.style.content.fontSize = v ? `${v}px` : "";
+      });
+    }).addDropdown((dd) => {
+      dd.addOption("px", "px");
+      dd.setValue("px");
+    });
+    new import_obsidian.Setting(card).setName(t("style-content-weight")).addDropdown((dd) => {
+      dd.addOption("", t("weight-default"));
+      dd.addOption("normal", "normal");
+      dd.addOption("bold", "bold");
+      for (let i = 100; i <= 900; i += 100)
+        dd.addOption(String(i), String(i));
+      dd.setValue(extra.style?.content?.fontWeight ?? "");
+      dd.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (!extra.style.content)
+          extra.style.content = {};
+        extra.style.content.fontWeight = v || void 0;
+      });
+    });
+    new import_obsidian.Setting(card).setName(t("style-border-color")).addText((tc) => {
+      tc.inputEl.type = "color";
+      tc.setValue(extra.style?.borderColor ?? "").onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        extra.style.borderColor = v;
+      });
+    });
+  }
+  parseSizeValue(val) {
+    if (!val)
+      return { num: "", unit: "px" };
+    const match = val.match(/^([\d.]+)\s*(px|%|em|rem|vw|vh|auto)?$/);
+    if (!match)
+      return { num: val, unit: "" };
+    if (match[2] === "auto")
+      return { num: "", unit: "auto" };
+    return { num: match[1], unit: match[2] || "px" };
+  }
+  renderSizeSetting(card, label, extra, prop) {
+    const parsed = this.parseSizeValue(extra.style?.[prop]);
+    let textComp;
+    new import_obsidian.Setting(card).setName(label).addText((tc) => {
+      textComp = tc;
+      tc.inputEl.type = "number";
+      tc.inputEl.placeholder = "auto";
+      tc.setValue(parsed.num);
+      tc.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        const cur = extra.style[prop] || "";
+        const unit = cur.replace(/^[\d.]+/, "") || "px";
+        extra.style[prop] = v ? `${v}${unit}` : "";
+      });
+      if (parsed.unit === "auto")
+        tc.inputEl.disabled = true;
+    }).addDropdown((dd) => {
+      const units = ["px", "%", "em", "rem", "vw", "vh", "auto"];
+      for (const u of units)
+        dd.addOption(u, u);
+      dd.setValue(parsed.unit);
+      dd.onChange((v) => {
+        if (!extra.style)
+          extra.style = {};
+        if (v === "auto") {
+          extra.style[prop] = "auto";
+          textComp.inputEl.disabled = true;
+        } else {
+          textComp.inputEl.disabled = false;
+          extra.style[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : "";
+        }
+      });
+    });
+  }
+  renderFilterSection(extra) {
+    this.filterContainerEl.empty();
+    this.filterContainerEl.createEl("h3", { text: t("filter-title") });
+    const card = this.filterContainerEl.createEl("div", { cls: "xyw-filter-section" });
+    const addBtn = card.createEl("button", { cls: "xyw-filter-add-btn" });
+    addBtn.textContent = "+ " + t("filter-add");
+    addBtn.addEventListener("click", () => {
+      extra.filters.push({ source: "fileprop", field: "name", operator: "contains", value: "", logic: "and" });
+      this.renderFilterRows(card, extra.filters);
+    });
+    this.renderFilterRows(card, extra.filters);
+  }
+  renderFilterRows(container, filters) {
+    container.findAll(".xyw-filter-row").forEach((el) => el.remove());
+    for (let i = 0; i < filters.length; i++) {
+      const row = container.createEl("div", { cls: "xyw-filter-row" });
+      const rule = filters[i];
+      if (i > 0) {
+        const logicSelect = row.createEl("select", { cls: "xyw-filter-logic dropdown" });
+        logicSelect.createEl("option", { value: "and", text: "AND" });
+        logicSelect.createEl("option", { value: "or", text: "OR" });
+        logicSelect.value = rule.logic;
+        logicSelect.addEventListener("change", () => {
+          rule.logic = logicSelect.value;
+        });
+      }
+      const sourceSelect = row.createEl("select", { cls: "xyw-filter-source dropdown" });
+      sourceSelect.createEl("option", { value: "fileprop", text: t("filter-source-fileprop") });
+      sourceSelect.createEl("option", { value: "yaml", text: t("filter-source-yaml") });
+      sourceSelect.value = rule.source;
+      sourceSelect.addEventListener("change", () => {
+        rule.source = sourceSelect.value;
+        if (rule.source === "fileprop") {
+          rule.field = fieldSelect.value;
+          fieldSelect.style.display = "";
+          fieldInput.style.display = "none";
+        } else {
+          rule.field = fieldInput.value || "";
+          fieldSelect.style.display = "none";
+          fieldInput.style.display = "";
+        }
+      });
+      const fieldContainer = row.createEl("span", { cls: "xyw-filter-field" });
+      const fieldSelect = fieldContainer.createEl("select", { cls: "dropdown" });
+      const filePropFields = ["name", "path", "ctime", "mtime", "size"];
+      for (const fp of filePropFields) {
+        fieldSelect.createEl("option", { value: fp, text: fp });
+      }
+      fieldSelect.value = rule.source === "fileprop" ? rule.field : "name";
+      fieldSelect.addEventListener("change", () => {
+        rule.field = fieldSelect.value;
+      });
+      const fieldInput = fieldContainer.createEl("input");
+      fieldInput.placeholder = "field name";
+      fieldInput.value = rule.source === "yaml" ? rule.field : "";
+      fieldInput.addEventListener("change", () => {
+        rule.field = fieldInput.value;
+      });
+      fieldInput.addEventListener("blur", () => {
+        rule.field = fieldInput.value;
+      });
+      const updateFieldVisibility = () => {
+        if (rule.source === "fileprop") {
+          fieldSelect.style.display = "";
+          fieldInput.style.display = "none";
+        } else {
+          fieldSelect.style.display = "none";
+          fieldInput.style.display = "";
+        }
+      };
+      updateFieldVisibility();
+      const opSelect = row.createEl("select", { cls: "xyw-filter-operator dropdown" });
+      const ops = ["contains", "not_contains", "equals", "not_equals", "gt", "lt"];
+      for (const op of ops) {
+        opSelect.createEl("option", { value: op, text: t(`filter-op-${op}`) });
+      }
+      opSelect.value = rule.operator;
+      opSelect.addEventListener("change", () => {
+        rule.operator = opSelect.value;
+      });
+      const valueInput = row.createEl("input", { cls: "xyw-filter-value" });
+      valueInput.value = rule.value;
+      valueInput.addEventListener("change", () => {
+        rule.value = valueInput.value;
+      });
+      const delBtn = row.createEl("button", { cls: "xyw-filter-del" });
+      delBtn.textContent = "\xD7";
+      delBtn.addEventListener("click", () => {
+        filters.splice(i, 1);
+        container.querySelectorAll(".xyw-filter-row").forEach((el) => el.remove());
+        this.renderFilterRows(container, filters);
+      });
     }
   }
   onClose() {
@@ -791,17 +1305,30 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
       name = v;
     }));
     const dynamicSectionEl = contentEl.createEl("div");
-    let refreshChildren = null;
-    refreshChildren = this.renderDynamicSection(dynamicSectionEl, type, children, (v) => {
-      type = v;
-    });
+    let settings = existing?.settings ? { ...existing.settings } : {};
+    const renderSection = () => {
+      this.renderDynamicSection(dynamicSectionEl, type, children, settings, (v) => {
+        type = v;
+        const meta = getWidgetMeta(type);
+        settings = {};
+        if (meta) {
+          for (const field of meta.settingSchema) {
+            settings[field.key] = field.defaultValue;
+          }
+        }
+        if (!isContainerType(type))
+          children = [];
+        renderSection();
+      });
+    };
+    renderSection();
     const bottomRow = contentEl.createEl("div", { cls: "xyw-bottom-row" });
     new import_obsidian2.ButtonComponent(bottomRow).setButtonText(t("btn-add-child")).setCta().onClick(async () => {
       const modal = new ChildEditorModal(this.app, null);
       const result = await modal.openAndGet();
       if (result) {
         children.push(result);
-        refreshChildren?.();
+        renderSection();
       }
     });
     const rightGroup = bottomRow.createEl("div", { cls: "xyw-bottom-right" });
@@ -810,7 +1337,7 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
         new import_obsidian2.Notice("Name is required");
         return;
       }
-      const data = { name: name.trim(), type, settings: {} };
+      const data = { name: name.trim(), type, settings };
       if (isContainerType(type))
         data.children = children;
       if (isNew) {
@@ -826,10 +1353,54 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
     });
     new import_obsidian2.ButtonComponent(rightGroup).setButtonText(t("btn-cancel")).onClick(() => this.close());
   }
-  renderDynamicSection(container, type, children, onTypeChange) {
+  renderDynamicSection(container, type, children, settings, onTypeChange) {
     container.empty();
-    if (!isContainerType(type))
-      return null;
+    if (!isContainerType(type)) {
+      const meta = getWidgetMeta(type);
+      if (meta && meta.settingSchema.length > 0) {
+        container.createEl("h3", { text: t("label-config") });
+        for (const field of meta.settingSchema) {
+          const setting = new import_obsidian2.Setting(container).setName(t(field.labelKey));
+          const currentVal = settings[field.key] ?? field.defaultValue;
+          switch (field.type) {
+            case "text":
+              setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
+                settings[field.key] = v;
+              }));
+              break;
+            case "number":
+              setting.addText((t3) => {
+                t3.setPlaceholder(field.placeholder ?? "0");
+                t3.setValue(String(currentVal));
+                t3.inputEl.type = "number";
+                t3.onChange((v) => {
+                  settings[field.key] = Number(v) || 0;
+                });
+              });
+              break;
+            case "textarea":
+              setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
+                settings[field.key] = v;
+              }));
+              break;
+            case "select":
+              if (field.options) {
+                const opts = field.options;
+                setting.addDropdown((dd) => {
+                  for (const opt of opts)
+                    dd.addOption(opt.value, opt.label);
+                  dd.setValue(String(currentVal));
+                  dd.onChange((v) => {
+                    settings[field.key] = v;
+                  });
+                });
+              }
+              break;
+          }
+        }
+      }
+      return;
+    }
     const headerRow = container.createEl("div", { cls: "xyw-section-header" });
     headerRow.createEl("h3", { text: t("label-widget-list") });
     new import_obsidian2.Setting(headerRow).setName(t("label-layout-type")).addDropdown((dd) => {
@@ -849,103 +1420,62 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
       listEl.empty();
       emptyEl.style.display = children.length ? "none" : "";
       for (let i = 0; i < children.length; i++) {
-        const child = children[i];
-        const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
-        card.draggable = true;
-        card.addEventListener("dragstart", (e) => {
-          e.dataTransfer?.setData("text/plain", String(i));
-          card.addClass("xyw-dragging");
-        });
-        card.addEventListener("dragend", () => {
-          card.removeClass("xyw-dragging");
-          listEl.querySelectorAll(".drag-over").forEach((el) => el.removeClass("drag-over"));
-        });
-        card.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          card.addClass("drag-over");
-        });
-        card.addEventListener("dragleave", () => {
-          card.removeClass("drag-over");
-        });
-        card.addEventListener("drop", (e) => {
-          e.preventDefault();
-          card.removeClass("drag-over");
-          const from = parseInt(e.dataTransfer?.getData("text/plain") ?? "-1");
-          if (from >= 0 && from !== i) {
-            const [item] = children.splice(from, 1);
-            const to = from < i ? i - 1 : i;
-            children.splice(to, 0, item);
-            refreshList();
-          }
-        });
-        const label = card.createEl("span", {
-          cls: "xyw-child-label-simple",
-          text: `${i + 1}. ${child.name} (${t(`type-${child.type}`)})`
-        });
-        const acts = card.createEl("div", { cls: "xyw-child-actions-simple" });
-        this.addChildActions(acts, children, i, listEl);
+        this.renderChildCard(listEl, children, i, refreshList);
       }
     };
     refreshList();
-    return refreshList;
   }
-  addChildActions(acts, children, i, listEl) {
-    const refreshList = () => {
-      listEl.empty();
-      for (let j = 0; j < children.length; j++) {
-        const child = children[j];
-        const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
-        card.draggable = true;
-        card.addEventListener("dragstart", (e) => {
-          e.dataTransfer?.setData("text/plain", String(j));
-          card.addClass("xyw-dragging");
-        });
-        card.addEventListener("dragend", () => {
-          card.removeClass("xyw-dragging");
-          listEl.querySelectorAll(".drag-over").forEach((el) => el.removeClass("drag-over"));
-        });
-        card.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          card.addClass("drag-over");
-        });
-        card.addEventListener("dragleave", () => {
-          card.removeClass("drag-over");
-        });
-        card.addEventListener("drop", (e) => {
-          e.preventDefault();
-          card.removeClass("drag-over");
-          const from = parseInt(e.dataTransfer?.getData("text/plain") ?? "-1");
-          if (from >= 0 && from !== j) {
-            const [item] = children.splice(from, 1);
-            const to = from < j ? j - 1 : j;
-            children.splice(to, 0, item);
-            refreshList();
-          }
-        });
-        const label = card.createEl("span", {
-          cls: "xyw-child-label-simple",
-          text: `${j + 1}. ${child.name} (${t(`type-${child.type}`)})`
-        });
-        const acts2 = card.createEl("div", { cls: "xyw-child-actions-simple" });
-        this.addChildActions(acts2, children, j, listEl);
+  renderChildCard(listEl, children, index, onRefresh) {
+    const child = children[index];
+    const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
+    card.draggable = true;
+    card.addEventListener("dragstart", (e) => {
+      e.dataTransfer?.setData("text/plain", String(index));
+      card.addClass("xyw-dragging");
+    });
+    card.addEventListener("dragend", () => {
+      card.removeClass("xyw-dragging");
+      listEl.querySelectorAll(".drag-over").forEach((el) => el.removeClass("drag-over"));
+    });
+    card.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      card.addClass("drag-over");
+    });
+    card.addEventListener("dragleave", () => {
+      card.removeClass("drag-over");
+    });
+    card.addEventListener("drop", (e) => {
+      e.preventDefault();
+      card.removeClass("drag-over");
+      const from = parseInt(e.dataTransfer?.getData("text/plain") ?? "-1");
+      if (from >= 0 && from !== index) {
+        const [item] = children.splice(from, 1);
+        const to = from < index ? index - 1 : index;
+        children.splice(to, 0, item);
+        onRefresh();
       }
-    };
+    });
+    card.createEl("span", {
+      cls: "xyw-child-label-simple",
+      text: `${index + 1}. ${child.name} (${t(`type-${child.type}`)})`
+    });
+    const acts = card.createEl("div", { cls: "xyw-child-actions-simple" });
     new import_obsidian2.ButtonComponent(acts).setIcon("copy").setTooltip("Duplicate").onClick(() => {
-      const copy = JSON.parse(JSON.stringify(children[i]));
-      children.splice(i + 1, 0, copy);
-      refreshList();
+      const copy = JSON.parse(JSON.stringify(children[index]));
+      children.splice(index + 1, 0, copy);
+      onRefresh();
     });
     new import_obsidian2.ButtonComponent(acts).setIcon("pencil").setTooltip(t("btn-edit")).onClick(async () => {
-      const modal = new ChildEditorModal(this.app, children[i]);
+      const modal = new ChildEditorModal(this.app, children[index]);
       const result = await modal.openAndGet();
       if (result) {
-        children[i] = result;
-        refreshList();
+        children[index] = result;
+        onRefresh();
       }
     });
     new import_obsidian2.ButtonComponent(acts).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(() => {
-      children.splice(i, 1);
-      refreshList();
+      children.splice(index, 1);
+      onRefresh();
     });
   }
   onClose() {
@@ -957,8 +1487,33 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
 var import_obsidian3 = require("obsidian");
 var CodeBlockRenderer = class {
   constructor(store, plugin) {
+    this.activeInstances = /* @__PURE__ */ new Set();
+    this.cleanupFns = [];
     this.store = store;
     this.plugin = plugin;
+    this.setupAutoRefresh();
+  }
+  setupAutoRefresh() {
+    const refreshAll = () => {
+      for (const widget of this.activeInstances) {
+        widget.refresh();
+      }
+    };
+    const vault = this.plugin.app.vault;
+    const events = [
+      vault.on("modify", refreshAll),
+      vault.on("delete", refreshAll),
+      vault.on("create", refreshAll)
+    ];
+    this.cleanupFns = events.map((evt) => () => vault.offref(evt));
+  }
+  destroy() {
+    for (const cleanup of this.cleanupFns)
+      cleanup();
+    for (const widget of this.activeInstances)
+      widget.destroy();
+    this.activeInstances.clear();
+    this.cleanupFns = [];
   }
   async render(source, container) {
     container.empty();
@@ -981,15 +1536,23 @@ var CodeBlockRenderer = class {
       return;
     }
     try {
+      const mergedSettings = { ...def.settings };
+      if (data.settings) {
+        Object.assign(mergedSettings, data.settings);
+      }
       await widget.render(container, {
         type: def.type,
-        title: def.name,
-        settings: def.settings,
-        children: def.children
+        title: data.title || def.name,
+        settings: mergedSettings,
+        children: def.children,
+        style: def.style,
+        filters: def.filters
       });
+      this.activeInstances.add(widget);
     } catch (e) {
       container.empty();
-      container.createEl("div", { cls: "xyw-error", text: `Render error: ${e.message}` });
+      const message = e instanceof Error ? e.message : String(e);
+      container.createEl("div", { cls: "xyw-error", text: `Render error: ${message}` });
     }
     const editBtn = container.createEl("button", { cls: "xyw-edit-overlay" });
     (0, import_obsidian3.setIcon)(editBtn, "pencil");
@@ -1017,7 +1580,18 @@ var CodeBlockRenderer = class {
     if (!data.id) {
       throw new Error("Missing id");
     }
-    return { id: data.id };
+    const result = { id: data.id };
+    if (data.title)
+      result.title = data.title;
+    const inlineSettings = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key.startsWith("settings.")) {
+        inlineSettings[key.slice(9)] = value;
+      }
+    }
+    if (Object.keys(inlineSettings).length > 0)
+      result.settings = inlineSettings;
+    return result;
   }
 };
 
@@ -1058,11 +1632,32 @@ var WidgetPickerModal = class extends import_obsidian4.Modal {
 
 // src/settings.ts
 var import_obsidian5 = require("obsidian");
+
+// src/utils/ReferenceScanner.ts
+async function scanWidgetReferences(app, widgetId) {
+  const files = app.vault.getMarkdownFiles();
+  const results = [];
+  const regex = /```xiaoyuanwidget[\s\S]*?id:\s*(\S+)[\s\S]*?```/g;
+  for (const file of files) {
+    const content = await app.vault.read(file);
+    regex.lastIndex = 0;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      if (match[1] === widgetId) {
+        results.push({ filePath: file.path, fileName: file.name });
+      }
+    }
+  }
+  return results;
+}
+
+// src/settings.ts
 var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin, store) {
     super(app, plugin);
     this.plugin = plugin;
     this.store = store;
+    this.filterText = "";
   }
   display() {
     const { containerEl } = this;
@@ -1104,9 +1699,18 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
       };
       input.click();
     }));
-    const widgets = this.store.getWidgets().filter((w) => isContainerType(w.type));
+    new import_obsidian5.Setting(containerEl).addSearch((cb) => cb.setPlaceholder("Search widgets...").setValue(this.filterText).onChange((v) => {
+      this.filterText = v.toLowerCase();
+      this.display();
+    }));
+    let widgets = this.store.getWidgets().filter((w) => isContainerType(w.type));
+    if (this.filterText) {
+      widgets = widgets.filter(
+        (w) => w.name.toLowerCase().includes(this.filterText) || w.id.toLowerCase().includes(this.filterText) || t(`type-${w.type}`).toLowerCase().includes(this.filterText)
+      );
+    }
     if (!widgets.length) {
-      containerEl.createEl("p", { cls: "xyw-empty-state", text: t("label-no-widgets") });
+      containerEl.createEl("p", { cls: "xyw-empty-state", text: this.filterText ? "No matching widgets." : t("label-no-widgets") });
       return;
     }
     const list = containerEl.createEl("div", { cls: "xyw-widget-list" });
@@ -1123,6 +1727,21 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
         navigator.clipboard.writeText(`\`\`\`xiaoyuanwidget
 id: ${w.id}
 \`\`\``).then(() => new import_obsidian5.Notice(t("msg-copied")));
+      });
+      new import_obsidian5.ButtonComponent(actions).setIcon("search").setTooltip(t("label-find-references")).onClick(async () => {
+        const refs = await scanWidgetReferences(this.app, w.id);
+        const refCount = refs.length;
+        if (!refCount) {
+          new import_obsidian5.Notice(t("label-no-widgets"));
+          return;
+        }
+        const modal = new import_obsidian5.Modal(this.app);
+        modal.contentEl.createEl("h3", { text: `${t("label-find-references")} \u2014 ${w.name}` });
+        const list2 = modal.contentEl.createEl("div", { cls: "xyw-widget-list" });
+        for (const ref of refs) {
+          list2.createEl("div", { cls: "xyw-widget-card", text: ref.filePath });
+        }
+        modal.open();
       });
       new import_obsidian5.ButtonComponent(actions).setIcon("pencil").setTooltip(t("btn-edit")).onClick(() => {
         new WidgetEditorModal(this.app, this.plugin, this.store, w.id, () => this.display()).open();
@@ -1152,6 +1771,9 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
     this.registerContextMenu();
     this.registerCommands();
     this.registerSettingTab();
+  }
+  onunload() {
+    this.renderer.destroy();
   }
   registerWidgetTypes() {
     const metas = [
@@ -1259,6 +1881,18 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
         defaultTitle: t("type-container-tab-v"),
         description: "Arrange child widgets as vertical tabs",
         settingSchema: []
+      },
+      {
+        type: "backlinks",
+        defaultTitle: t("type-backlinks"),
+        description: "Show backlinks for the active file",
+        settingSchema: []
+      },
+      {
+        type: "random-note",
+        defaultTitle: t("type-random-note"),
+        description: "Open a random note",
+        settingSchema: []
       }
     ];
     const widgets = [
@@ -1269,8 +1903,10 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
       { ctor: DataviewListWidget, meta: metas[4] },
       { ctor: ContainerRowWidget, meta: metas[5] },
       { ctor: ContainerColWidget, meta: metas[6] },
-      { ctor: ContainerTabWidget, meta: metas[7] },
-      { ctor: ContainerTabWidget, meta: metas[8] }
+      { ctor: ContainerTabHWidget, meta: metas[7] },
+      { ctor: ContainerTabVWidget, meta: metas[8] },
+      { ctor: BacklinksWidget, meta: metas[9] },
+      { ctor: RandomNoteWidget, meta: metas[10] }
     ];
     for (const { ctor, meta } of widgets) {
       registerWidgetType(ctor, meta);
@@ -1283,14 +1919,12 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
   }
   registerContextMenu() {
     this.registerEvent(
-      this.app.workspace.on("editor-menu", (menu, editor, view) => {
-        let rootSub;
+      this.app.workspace.on("editor-menu", (menu, editor) => {
+        let rootSub = null;
         menu.addItem((item) => {
           item.setTitle(t("context-insert-widget"));
           rootSub = item.setSubmenu();
         });
-        if (!rootSub)
-          return;
         rootSub.addItem((item) => {
           item.setTitle(t("context-new-widget"));
           item.setIcon("plus");
@@ -1312,13 +1946,11 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
           });
           return;
         }
-        let insertSub;
+        let insertSub = null;
         rootSub.addItem((item) => {
           item.setTitle(t("context-insert-wgt"));
           insertSub = item.setSubmenu();
         });
-        if (!insertSub)
-          return;
         const grouped = /* @__PURE__ */ new Map();
         for (const w of widgets) {
           const list = grouped.get(w.type) || [];
@@ -1330,13 +1962,11 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
           const list = grouped.get(type);
           if (!list || list.length === 0)
             continue;
-          let typeSub;
+          let typeSub = null;
           insertSub.addItem((item) => {
             item.setTitle(t(`type-${type}`));
             typeSub = item.setSubmenu();
           });
-          if (!typeSub)
-            continue;
           for (const w of list) {
             typeSub.addItem((item) => {
               item.setTitle(w.name);

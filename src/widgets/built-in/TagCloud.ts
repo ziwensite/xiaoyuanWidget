@@ -1,6 +1,7 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { t } from '../../i18n';
+import { applyFilters } from '../../utils/StyleUtils';
 
 export class TagCloudWidget extends BaseWidget {
   getType(): string { return 'tag-cloud'; }
@@ -12,9 +13,10 @@ export class TagCloudWidget extends BaseWidget {
     const vault = app.vault;
     const minCount = (config.settings.minCount as number) ?? 1;
 
-    const tagCount = new Map<string, number>();
-    const files = vault.getMarkdownFiles() as any[];
+    let files = vault.getMarkdownFiles() as any[];
+    files = applyFilters(files, config.filters);
     const cache = app.metadataCache;
+    const tagCount = new Map<string, number>();
 
     for (const file of files) {
       const metadata = cache.getFileCache(file);

@@ -1,6 +1,6 @@
-import { Plugin, MarkdownView, Notice, Editor } from 'obsidian';
+import { Plugin, Notice, Editor, Menu } from 'obsidian';
 import { WidgetStore } from './store/WidgetStore';
-import { registerWidgetType, getAllWidgetTypes, getWidgetMeta } from './widgets/registry';
+import { registerWidgetType, getAllWidgetTypes } from './widgets/registry';
 import { StatsCardWidget } from './widgets/built-in/StatsCard';
 import { RecentFilesWidget } from './widgets/built-in/RecentFiles';
 import { TagCloudWidget } from './widgets/built-in/TagCloud';
@@ -8,7 +8,9 @@ import { DataviewTableWidget } from './widgets/built-in/DataviewTable';
 import { DataviewListWidget } from './widgets/built-in/DataviewList';
 import { ContainerRowWidget } from './widgets/built-in/ContainerRow';
 import { ContainerColWidget } from './widgets/built-in/ContainerCol';
-import { ContainerTabWidget } from './widgets/built-in/ContainerTab';
+import { ContainerTabHWidget, ContainerTabVWidget } from './widgets/built-in/ContainerTab';
+import { BacklinksWidget } from './widgets/built-in/Backlinks';
+import { RandomNoteWidget } from './widgets/built-in/RandomNote';
 import { CodeBlockRenderer } from './renderer/CodeBlockRenderer';
 import { WidgetPickerModal } from './ui/WidgetPickerModal';
 import { WidgetEditorModal } from './modals';
@@ -36,6 +38,10 @@ export default class WidgetPlugin extends Plugin {
     this.registerContextMenu();
     this.registerCommands();
     this.registerSettingTab();
+  }
+
+  onunload(): void {
+    this.renderer.destroy();
   }
 
   private registerWidgetTypes(): void {
@@ -145,6 +151,18 @@ export default class WidgetPlugin extends Plugin {
         description: 'Arrange child widgets as vertical tabs',
         settingSchema: [],
       },
+      {
+        type: 'backlinks',
+        defaultTitle: t('type-backlinks'),
+        description: 'Show backlinks for the active file',
+        settingSchema: [],
+      },
+      {
+        type: 'random-note',
+        defaultTitle: t('type-random-note'),
+        description: 'Open a random note',
+        settingSchema: [],
+      },
     ];
 
     const widgets = [
@@ -155,8 +173,10 @@ export default class WidgetPlugin extends Plugin {
       { ctor: DataviewListWidget, meta: metas[4] },
       { ctor: ContainerRowWidget, meta: metas[5] },
       { ctor: ContainerColWidget, meta: metas[6] },
-      { ctor: ContainerTabWidget, meta: metas[7] },
-      { ctor: ContainerTabWidget, meta: metas[8] },
+      { ctor: ContainerTabHWidget, meta: metas[7] },
+      { ctor: ContainerTabVWidget, meta: metas[8] },
+      { ctor: BacklinksWidget, meta: metas[9] },
+      { ctor: RandomNoteWidget, meta: metas[10] },
     ];
 
     for (const { ctor, meta } of widgets) {
@@ -172,13 +192,12 @@ export default class WidgetPlugin extends Plugin {
 
   private registerContextMenu(): void {
     this.registerEvent(
-      this.app.workspace.on('editor-menu', (menu: any, editor: any, view: any) => {
-        let rootSub: any;
+      this.app.workspace.on('editor-menu', (menu: Menu, editor: Editor) => {
+        let rootSub: any = null;
         menu.addItem((item: any) => {
           item.setTitle(t('context-insert-widget'));
           rootSub = item.setSubmenu();
         });
-        if (!rootSub) return;
 
         rootSub.addItem((item: any) => {
           item.setTitle(t('context-new-widget'));
@@ -190,8 +209,8 @@ export default class WidgetPlugin extends Plugin {
           });
         });
 
-        const widgets = this.store.getWidgets().filter((w: any) => {
-          const containerTypes = new Set(['container-row', 'container-col', 'container-tab-h', 'container-tab-v']);
+        const widgets = this.store.getWidgets().filter(w => {
+          const containerTypes: ReadonlySet<string> = new Set(['container-row', 'container-col', 'container-tab-h', 'container-tab-v']);
           return containerTypes.has(w.type);
         });
         if (widgets.length === 0) {
@@ -202,14 +221,13 @@ export default class WidgetPlugin extends Plugin {
           return;
         }
 
-        let insertSub: any;
+        let insertSub: any = null;
         rootSub.addItem((item: any) => {
           item.setTitle(t('context-insert-wgt'));
           insertSub = item.setSubmenu();
         });
-        if (!insertSub) return;
 
-        const grouped = new Map<string, any[]>();
+        const grouped = new Map<string, typeof widgets>();
         for (const w of widgets) {
           const list = grouped.get(w.type) || [];
           list.push(w);
@@ -221,12 +239,11 @@ export default class WidgetPlugin extends Plugin {
           const list = grouped.get(type);
           if (!list || list.length === 0) continue;
 
-          let typeSub: any;
+          let typeSub: any = null;
           insertSub.addItem((item: any) => {
             item.setTitle(t(`type-${type}`));
             typeSub = item.setSubmenu();
           });
-          if (!typeSub) continue;
 
           for (const w of list) {
             typeSub.addItem((item: any) => {

@@ -1,6 +1,7 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { t } from '../../i18n';
+import { applyFilters } from '../../utils/StyleUtils';
 
 export class RecentFilesWidget extends BaseWidget {
   getType(): string { return 'recent-files'; }
@@ -14,6 +15,7 @@ export class RecentFilesWidget extends BaseWidget {
     const excludeFolders = ((config.settings.excludeFolders as string) ?? '').split(',').map(s => s.trim()).filter(Boolean);
 
     let files = vault.getMarkdownFiles() as any[];
+    files = applyFilters(files, config.filters);
     files = files
       .filter((f: any) => {
         if (!excludeFolders.length) return true;

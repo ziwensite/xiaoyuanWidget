@@ -1,3 +1,9 @@
+export interface DataviewQueryResult {
+  type: 'table' | 'list' | 'task';
+  headers: string[];
+  values: any[][];
+}
+
 export class DataviewBridge {
   private static instance: DataviewBridge;
   private api: any = null;
@@ -30,28 +36,17 @@ export class DataviewBridge {
     }
   }
 
-  async executeQuery(query: string): Promise<any[]> {
+  async query(query: string): Promise<DataviewQueryResult | null> {
     const dv = this.getAPI();
     if (!dv) throw new Error('Dataview not available');
 
     const result = dv.query(query);
-    if (result && result.successful && result.value) {
-      return result.value.values ?? [];
-    }
-    return [];
-  }
+    if (!result || !result.successful || !result.value) return null;
 
-  async executeTableQuery(query: string): Promise<{ headers: string[]; values: any[][] } | null> {
-    const dv = this.getAPI();
-    if (!dv) throw new Error('Dataview not available');
-
-    const result = dv.query(query);
-    if (result && result.successful && result.value) {
-      return {
-        headers: result.value.headers ?? [],
-        values: result.value.values ?? [],
-      };
-    }
-    return null;
+    return {
+      type: result.value.type ?? 'list',
+      headers: result.value.headers ?? [],
+      values: result.value.values ?? [],
+    };
   }
 }

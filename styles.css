@@ -12,12 +12,15 @@ button.xyw-edit-overlay {
   position: absolute;
   top: 36px;
   right: 4px;
-  opacity: 0;
-  transition: opacity 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+button.xyw-edit-overlay:hover {
+  opacity: 1;
 }
 
 .xyw-card-title {
@@ -403,6 +406,76 @@ button.xyw-edit-overlay:hover {
 .xyw-edit-overlay svg,
 .xyw-child-actions-simple svg,
 .xyw-widget-actions svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
+}
+
+/* Style & Filter editor UI */
+.xyw-config-card,
+.xyw-style-section,
+.xyw-filter-section {
+  margin: 8px 0 16px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+}
+.xyw-editor-modal h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.xyw-editor-modal h3:first-child {
+  margin-top: 0;
+}
+.xyw-config-card .setting-item,
+.xyw-style-section .setting-item,
+.xyw-filter-section .setting-item {
+  border-top: none !important;
+  padding: 4px 0 !important;
+  min-height: unset !important;
+}
+.xyw-filter-add-btn {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.xyw-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.xyw-filter-row input {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  padding: 4px 6px;
+}
+.xyw-filter-logic {
+  font-weight: 600;
+}
+.xyw-filter-value {
+  width: 100px;
+}
+.xyw-filter-value {
+  width: 100px;
+}
+.xyw-filter-del {
+  background: transparent;
+  border: none;
+  color: var(--text-error);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 6px;
+  line-height: 1;
 }

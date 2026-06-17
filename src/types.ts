@@ -3,7 +3,9 @@ export type WidgetType =
   | 'recent-files'
   | 'tag-cloud'
   | 'dv-table'
-  | 'dv-list';
+  | 'dv-list'
+  | 'backlinks'
+  | 'random-note';
 
 export type ContainerType =
   | 'container-row'
@@ -13,11 +15,40 @@ export type ContainerType =
 
 export type AnyWidgetType = WidgetType | ContainerType;
 
+export interface WidgetStyle {
+  title?: {
+    align?: 'left' | 'center' | 'right';
+    color?: string;
+    bgColor?: string;
+    fontSize?: string;
+    fontWeight?: string;
+  };
+  content?: {
+    align?: 'left' | 'center' | 'right';
+    color?: string;
+    fontSize?: string;
+    fontWeight?: string;
+  };
+  borderColor?: string;
+  width?: string;
+  height?: string;
+}
+
+export interface FilterRule {
+  source: 'yaml' | 'fileprop';
+  field: string;
+  operator: 'contains' | 'not_contains' | 'equals' | 'not_equals' | 'gt' | 'lt';
+  value: string;
+  logic: 'and' | 'or';
+}
+
 export interface ChildWidgetConfig {
   name: string;
   type: AnyWidgetType;
   settings: Record<string, unknown>;
   children?: ChildWidgetConfig[];
+  style?: WidgetStyle;
+  filters?: FilterRule[];
 }
 
 export interface WidgetDefinition {
@@ -28,10 +59,14 @@ export interface WidgetDefinition {
   children?: ChildWidgetConfig[];
   createdAt: number;
   updatedAt: number;
+  style?: WidgetStyle;
+  filters?: FilterRule[];
 }
 
 export interface WidgetCodeBlockData {
   id: string;
+  title?: string;
+  settings?: Record<string, string>;
 }
 
 export interface WidgetConfig {
@@ -39,6 +74,8 @@ export interface WidgetConfig {
   title: string;
   settings: Record<string, unknown>;
   children?: ChildWidgetConfig[];
+  style?: WidgetStyle;
+  filters?: FilterRule[];
 }
 
 export interface WidgetMeta {

@@ -23,20 +23,21 @@ export class DataviewListWidget extends BaseWidget {
     }
 
     try {
-      const values = await dv.executeQuery(query);
-      if (!values || !values.length) {
+      const result = await dv.query(query);
+      if (!result || !result.values.length) {
         container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-data') });
         return;
       }
 
       const list = container.createEl('ul', { cls: 'xyw-list' });
-      for (const row of values) {
+      for (const row of result.values) {
         const item = list.createEl('li', { cls: 'xyw-list-item' });
         const text = row.map((v: any) => v != null ? String(v) : '-').join(' · ');
         item.textContent = text;
       }
-    } catch (e: any) {
-      container.createEl('div', { cls: 'xyw-error', text: t2('msg-dataview-query-error', { msg: e.message }) });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      container.createEl('div', { cls: 'xyw-error', text: t2('msg-dataview-query-error', { msg: message }) });
     }
   }
 }

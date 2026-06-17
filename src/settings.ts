@@ -1,11 +1,13 @@
-import { App, PluginSettingTab, Setting, Notice, ButtonComponent } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, ButtonComponent, Modal } from 'obsidian';
 import type WidgetPlugin from './main';
 import { WidgetStore } from './store/WidgetStore';
 import { t, t2 } from './i18n';
-import { WidgetDefinition } from './types';
 import { WidgetEditorModal, isContainerType } from './modals';
+import { scanWidgetReferences } from './utils/ReferenceScanner';
 
 export class WidgetSettingTab extends PluginSettingTab {
+  private filterText = '';
+
   constructor(app: App, private plugin: WidgetPlugin, private store: WidgetStore) {
     super(app, plugin);
   }
@@ -57,9 +59,25 @@ export class WidgetSettingTab extends PluginSettingTab {
           input.click();
         }));
 
-    const widgets = this.store.getWidgets().filter(w => isContainerType(w.type));
+    new Setting(containerEl)
+      .addSearch(cb => cb
+        .setPlaceholder('Search widgets...')
+        .setValue(this.filterText)
+        .onChange(v => {
+          this.filterText = v.toLowerCase();
+          this.display();
+        }));
+
+    let widgets = this.store.getWidgets().filter(w => isContainerType(w.type));
+    if (this.filterText) {
+      widgets = widgets.filter(w =>
+        w.name.toLowerCase().includes(this.filterText) ||
+        w.id.toLowerCase().includes(this.filterText) ||
+        t(`type-${w.type}`).toLowerCase().includes(this.filterText)
+      );
+    }
     if (!widgets.length) {
-      containerEl.createEl('p', { cls: 'xyw-empty-state', text: t('label-no-widgets') });
+      containerEl.createEl('p', { cls: 'xyw-empty-state', text: this.filterText ? 'No matching widgets.' : t('label-no-widgets') });
       return;
     }
 
@@ -78,6 +96,24 @@ export class WidgetSettingTab extends PluginSettingTab {
         .onClick(() => {
           navigator.clipboard.writeText(`\`\`\`xiaoyuanwidget\nid: ${w.id}\n\`\`\``)
             .then(() => new Notice(t('msg-copied')));
+        });
+      new ButtonComponent(actions)
+        .setIcon('search')
+        .setTooltip(t('label-find-references'))
+        .onClick(async () => {
+          const refs = await scanWidgetReferences(this.app, w.id);
+          const refCount = refs.length;
+          if (!refCount) {
+            new Notice(t('label-no-widgets'));
+            return;
+          }
+          const modal = new Modal(this.app);
+          modal.contentEl.createEl('h3', { text: `${t('label-find-references')} — ${w.name}` });
+          const list = modal.contentEl.createEl('div', { cls: 'xyw-widget-list' });
+          for (const ref of refs) {
+            list.createEl('div', { cls: 'xyw-widget-card', text: ref.filePath });
+          }
+          modal.open();
         });
       new ButtonComponent(actions)
         .setIcon('pencil')

@@ -1,6 +1,7 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { t, getLang } from '../../i18n';
+import { applyFilters } from '../../utils/StyleUtils';
 
 export class StatsCardWidget extends BaseWidget {
   getType(): string { return 'stats-card'; }
@@ -10,7 +11,8 @@ export class StatsCardWidget extends BaseWidget {
     if (!app) return;
 
     const vault = app.vault;
-    const files = vault.getMarkdownFiles();
+    let files = vault.getMarkdownFiles();
+    files = applyFilters(files, config.filters);
     const dimension = (config.settings.dimension as string) ?? 'total';
 
     let value: number;

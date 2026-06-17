@@ -23,7 +23,7 @@ export class DataviewTableWidget extends BaseWidget {
     }
 
     try {
-      const result = await dv.executeTableQuery(query);
+      const result = await dv.query(query);
       if (!result || !result.values.length) {
         container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-data') });
         return;
@@ -43,8 +43,9 @@ export class DataviewTableWidget extends BaseWidget {
           tr.createEl('td', { text: cell ? String(cell) : '' });
         }
       }
-    } catch (e: any) {
-      container.createEl('div', { cls: 'xyw-error', text: t2('msg-dataview-query-error', { msg: e.message }) });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      container.createEl('div', { cls: 'xyw-error', text: t2('msg-dataview-query-error', { msg: message }) });
     }
   }
 }
