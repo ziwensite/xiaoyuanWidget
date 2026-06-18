@@ -34,8 +34,13 @@ const translations: Record<string, Record<Lang, string>> = {
 
   'title-edit-widget': { en: 'Edit Widget', zh: '编辑部件' },
   'title-new-widget': { en: 'New Widget', zh: '新建部件' },
-  'title-pick-widget': { en: 'Insert xiaoyuanWidget', zh: '插入小元部件' },
+  'title-pick-widget': { en: 'Select Widget', zh: '选择挂件' },
   'title-widget-preview': { en: 'Preview', zh: '预览' },
+  'btn-new-container': { en: 'New Container', zh: '新建容器' },
+  'btn-new-leaf': { en: 'New Widget', zh: '新建子部件' },
+  'btn-insert-ref': { en: 'Insert', zh: '引用' },
+  'btn-duplicate': { en: 'Duplicate', zh: '复制' },
+  'label-filter': { en: 'Filter...', zh: '筛选...' },
 
   'msg-confirm-delete': { en: 'Are you sure you want to delete "{name}"?', zh: '确定删除部件"{name}"吗？' },
   'msg-widget-exists': { en: 'A widget with this ID already exists.', zh: '此 ID 已存在。' },
@@ -121,9 +126,6 @@ const translations: Record<string, Record<Lang, string>> = {
   'label-container': { en: 'Container', zh: '容器' },
   'label-leaf': { en: 'Leaf', zh: '叶子' },
   'label-reference-count': { en: 'Referenced by {n} container(s)', zh: '被 {n} 个容器引用' },
-
-  'btn-duplicate': { en: 'Duplicate', zh: '复制' },
-  'btn-new-leaf': { en: 'New Leaf Widget', zh: '新建叶子部件' },
 
   'msg-delete-referenced': { en: '"{name}" is referenced by {n} container(s). Delete anyway?', zh: '"{name}" 被 {n} 个容器引用，确认删除？' },
 

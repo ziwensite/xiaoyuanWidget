@@ -395,8 +395,13 @@ var translations = {
   "label-find-references": { en: "Find References", zh: "\u67E5\u627E\u5F15\u7528" },
   "title-edit-widget": { en: "Edit Widget", zh: "\u7F16\u8F91\u90E8\u4EF6" },
   "title-new-widget": { en: "New Widget", zh: "\u65B0\u5EFA\u90E8\u4EF6" },
-  "title-pick-widget": { en: "Insert xiaoyuanWidget", zh: "\u63D2\u5165\u5C0F\u5143\u90E8\u4EF6" },
+  "title-pick-widget": { en: "Select Widget", zh: "\u9009\u62E9\u6302\u4EF6" },
   "title-widget-preview": { en: "Preview", zh: "\u9884\u89C8" },
+  "btn-new-container": { en: "New Container", zh: "\u65B0\u5EFA\u5BB9\u5668" },
+  "btn-new-leaf": { en: "New Widget", zh: "\u65B0\u5EFA\u5B50\u90E8\u4EF6" },
+  "btn-insert-ref": { en: "Insert", zh: "\u5F15\u7528" },
+  "btn-duplicate": { en: "Duplicate", zh: "\u590D\u5236" },
+  "label-filter": { en: "Filter...", zh: "\u7B5B\u9009..." },
   "msg-confirm-delete": { en: 'Are you sure you want to delete "{name}"?', zh: '\u786E\u5B9A\u5220\u9664\u90E8\u4EF6"{name}"\u5417\uFF1F' },
   "msg-widget-exists": { en: "A widget with this ID already exists.", zh: "\u6B64 ID \u5DF2\u5B58\u5728\u3002" },
   "msg-require-dataview": { en: "Dataview plugin is required. Install and enable it first.", zh: "\u9700\u8981 Dataview \u63D2\u4EF6\uFF0C\u8BF7\u5148\u5B89\u88C5\u5E76\u542F\u7528\u3002" },
@@ -473,8 +478,6 @@ var translations = {
   "label-container": { en: "Container", zh: "\u5BB9\u5668" },
   "label-leaf": { en: "Leaf", zh: "\u53F6\u5B50" },
   "label-reference-count": { en: "Referenced by {n} container(s)", zh: "\u88AB {n} \u4E2A\u5BB9\u5668\u5F15\u7528" },
-  "btn-duplicate": { en: "Duplicate", zh: "\u590D\u5236" },
-  "btn-new-leaf": { en: "New Leaf Widget", zh: "\u65B0\u5EFA\u53F6\u5B50\u90E8\u4EF6" },
   "msg-delete-referenced": { en: '"{name}" is referenced by {n} container(s). Delete anyway?', zh: '"{name}" \u88AB {n} \u4E2A\u5BB9\u5668\u5F15\u7528\uFF0C\u786E\u8BA4\u5220\u9664\uFF1F' },
   "codeblock-hint": { en: "Right-click to insert a widget, or manually write:\n```xiaoyuanwidget\nid: your-widget-id\n```", zh: "\u53F3\u952E\u53EF\u63D2\u5165\u90E8\u4EF6\uFF0C\u6216\u624B\u52A8\u7F16\u5199\uFF1A\n```xiaoyuanwidget\nid: your-widget-id\n```" }
 };
@@ -1718,32 +1721,110 @@ var CodeBlockRenderer = class {
 // src/ui/WidgetPickerModal.ts
 var import_obsidian4 = require("obsidian");
 var WidgetPickerModal = class extends import_obsidian4.Modal {
-  constructor(app, store, onSelect) {
+  constructor(app, plugin, store, onInsert) {
     super(app);
+    this.filterText = "";
+    this.plugin = plugin;
     this.store = store;
-    this.onSelect = onSelect;
+    this.onInsert = onInsert;
   }
   onOpen() {
+    this.render();
+  }
+  render() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("xyw-picker-modal");
-    contentEl.createEl("h2", { text: t("title-pick-widget") });
-    const widgets = this.store.getWidgets();
-    if (!widgets.length) {
-      contentEl.createEl("p", { text: t("label-no-widgets") });
-      return;
-    }
-    const list = contentEl.createEl("div", { cls: "xyw-picker-list" });
-    for (const w of widgets) {
-      const item = list.createEl("div", { cls: "xyw-picker-item" });
-      item.createEl("span", { cls: "xyw-picker-name", text: w.name });
-      item.createEl("span", { cls: "xyw-picker-type", text: t(`type-${w.type}`) });
-      item.createEl("span", { cls: "xyw-picker-id", text: w.id });
-      item.addEventListener("click", () => {
-        this.onSelect(w.id);
-        this.close();
+    const titleRow = contentEl.createEl("div", { cls: "xyw-picker-title-row" });
+    titleRow.createEl("h2", { text: t("title-pick-widget") });
+    const toolbar = contentEl.createEl("div", { cls: "xyw-picker-toolbar" });
+    const newContainerBtn = toolbar.createEl("button", { cls: "xyw-picker-btn-primary", text: t("btn-new-container") });
+    newContainerBtn.addEventListener("click", () => {
+      const modal = new WidgetEditorModal(this.app, this.plugin, this.store, null, (widget) => {
+        if (widget) {
+          this.onInsert(widget.id);
+          this.close();
+        }
       });
+      modal.open();
+    });
+    const newLeafBtn = toolbar.createEl("button", { cls: "xyw-picker-btn", text: t("btn-new-leaf") });
+    newLeafBtn.addEventListener("click", () => {
+      const modal = new WidgetEditorModal(this.app, this.plugin, this.store, null, (widget) => {
+        if (widget) {
+          this.onInsert(widget.id);
+          this.close();
+        }
+      });
+      modal.open();
+    });
+    const searchInput = contentEl.createEl("input", {
+      cls: "xyw-picker-search",
+      attr: { placeholder: t("label-filter") }
+    });
+    searchInput.addEventListener("input", () => {
+      this.filterText = searchInput.value.toLowerCase();
+      this.renderList();
+    });
+    const listContainer = contentEl.createEl("div", { cls: "xyw-picker-list" });
+    this.renderListInto(listContainer);
+  }
+  renderListInto(container) {
+    container.empty();
+    let widgets = this.store.getWidgets();
+    if (this.filterText) {
+      widgets = widgets.filter(
+        (w) => w.name.toLowerCase().includes(this.filterText) || w.id.toLowerCase().includes(this.filterText) || t(`type-${w.type}`).toLowerCase().includes(this.filterText)
+      );
     }
+    const containers = widgets.filter((w) => isContainerType(w.type));
+    const leaves = widgets.filter((w) => !isContainerType(w.type));
+    if (containers.length > 0) {
+      container.createEl("div", { cls: "xyw-picker-group-title", text: t("label-widget-list") });
+      for (const w of containers)
+        this.renderCard(container, w);
+    }
+    if (leaves.length > 0) {
+      container.createEl("div", { cls: "xyw-picker-group-title", text: t("label-child-list") });
+      for (const w of leaves)
+        this.renderCard(container, w);
+    }
+    if (!widgets.length) {
+      container.createEl("p", { cls: "xyw-empty-state", text: this.filterText ? "No matching widgets." : t("label-no-widgets") });
+    }
+  }
+  renderList() {
+    const listContainer = this.contentEl.querySelector(".xyw-picker-list");
+    if (listContainer)
+      this.renderListInto(listContainer);
+  }
+  renderCard(container, w) {
+    const card = container.createEl("div", { cls: "xyw-picker-card" });
+    const info = card.createEl("div", { cls: "xyw-picker-card-info" });
+    info.createEl("div", { cls: "xyw-picker-card-name", text: w.name });
+    info.createEl("div", { cls: "xyw-picker-card-type", text: t(`type-${w.type}`) });
+    const actions = card.createEl("div", { cls: "xyw-picker-card-actions" });
+    const insertBtn = actions.createEl("button", { cls: "xyw-picker-card-btn", text: t("btn-insert-ref") });
+    insertBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.onInsert(w.id);
+      this.close();
+    });
+    const dupBtn = actions.createEl("button", { cls: "xyw-picker-card-btn", text: t("btn-duplicate") });
+    dupBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const copy = JSON.parse(JSON.stringify(w));
+      delete copy.id;
+      delete copy.createdAt;
+      delete copy.updatedAt;
+      const saved = await this.store.addWidget(copy);
+      new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, (widget) => {
+        if (widget) {
+          this.onInsert(widget.id);
+          this.close();
+        }
+      }).open();
+    });
   }
   onClose() {
     this.contentEl.empty();
@@ -2118,68 +2199,15 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
   registerContextMenu() {
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor) => {
-        let rootSub = null;
         menu.addItem((item) => {
           item.setTitle(t("context-insert-widget"));
-          rootSub = item.setSubmenu();
-        });
-        rootSub.addItem((item) => {
-          item.setTitle(t("context-new-widget"));
-          item.setIcon("plus");
+          item.setIcon("blocks");
           item.onClick(() => {
-            new WidgetEditorModal(this.app, this, this.store, null, (widget) => {
-              if (widget)
-                this.insertCodeBlock(editor, widget.id);
+            new WidgetPickerModal(this.app, this, this.store, (id) => {
+              this.insertCodeBlock(editor, id);
             }).open();
           });
         });
-        const containers = this.store.getContainerWidgets();
-        const leaves = this.store.getLeafWidgets();
-        const addWidgetSub = (parentSub, title, widgets, insert) => {
-          let sub = null;
-          parentSub.addItem((item) => {
-            item.setTitle(title);
-            sub = item.setSubmenu();
-          });
-          if (sub) {
-            for (const w of widgets) {
-              sub.addItem((item) => {
-                item.setTitle(w.name);
-                item.onClick(() => {
-                  if (insert) {
-                    this.insertCodeBlock(editor, w.id);
-                  } else {
-                    const copy = JSON.parse(JSON.stringify(w));
-                    delete copy.id;
-                    delete copy.createdAt;
-                    delete copy.updatedAt;
-                    this.store.addWidget({
-                      name: w.name + " (\u526F\u672C)",
-                      type: w.type,
-                      settings: copy.settings || {},
-                      children: copy.children ? [...copy.children] : [],
-                      style: copy.style,
-                      filters: copy.filters
-                    }).then((saved) => {
-                      new WidgetEditorModal(this.app, this, this.store, saved.id, (widget) => {
-                        if (widget)
-                          this.insertCodeBlock(editor, widget.id);
-                      }).open();
-                    });
-                  }
-                });
-              });
-            }
-          }
-        };
-        if (containers.length > 0)
-          addWidgetSub(rootSub, "\u5F15\u7528\u5BB9\u5668", containers, true);
-        if (leaves.length > 0)
-          addWidgetSub(rootSub, "\u5F15\u7528\u53F6\u5B50", leaves, true);
-        if (containers.length > 0)
-          addWidgetSub(rootSub, "\u590D\u5236\u5BB9\u5668", containers, false);
-        if (leaves.length > 0)
-          addWidgetSub(rootSub, "\u590D\u5236\u53F6\u5B50", leaves, false);
       })
     );
   }
@@ -2199,7 +2227,7 @@ id: ${id}
       id: "insert-widget",
       name: "Insert widget at cursor",
       editorCallback: (editor, view) => {
-        new WidgetPickerModal(this.app, this.store, (id) => {
+        new WidgetPickerModal(this.app, this, this.store, (id) => {
           this.insertCodeBlock(editor, id);
         }).open();
       }

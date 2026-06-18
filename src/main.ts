@@ -220,64 +220,15 @@ export default class WidgetPlugin extends Plugin {
   private registerContextMenu(): void {
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu: Menu, editor: Editor) => {
-        let rootSub: any = null;
         menu.addItem((item: any) => {
           item.setTitle(t('context-insert-widget'));
-          rootSub = item.setSubmenu();
-        });
-
-        rootSub.addItem((item: any) => {
-          item.setTitle(t('context-new-widget'));
-          item.setIcon('plus');
+          item.setIcon('blocks');
           item.onClick(() => {
-            new WidgetEditorModal(this.app, this, this.store, null, (widget) => {
-              if (widget) this.insertCodeBlock(editor, widget.id);
+            new WidgetPickerModal(this.app, this, this.store, (id) => {
+              this.insertCodeBlock(editor, id);
             }).open();
           });
         });
-
-        const containers = this.store.getContainerWidgets();
-        const leaves = this.store.getLeafWidgets();
-
-        const addWidgetSub = (parentSub: any, title: string, widgets: any[], insert: boolean) => {
-          let sub: any = null;
-          parentSub.addItem((item: any) => {
-            item.setTitle(title);
-            sub = item.setSubmenu();
-          });
-          if (sub) {
-            for (const w of widgets) {
-              sub.addItem((item: any) => {
-                item.setTitle(w.name);
-                item.onClick(() => {
-                  if (insert) {
-                    this.insertCodeBlock(editor, w.id);
-                  } else {
-                    const copy = JSON.parse(JSON.stringify(w));
-                    delete copy.id; delete copy.createdAt; delete copy.updatedAt;
-                    this.store.addWidget({
-                      name: w.name + ' (副本)',
-                      type: w.type,
-                      settings: copy.settings || {},
-                      children: copy.children ? [...copy.children] : [],
-                      style: copy.style,
-                      filters: copy.filters,
-                    }).then(saved => {
-                      new WidgetEditorModal(this.app, this, this.store, saved.id, (widget) => {
-                        if (widget) this.insertCodeBlock(editor, widget.id);
-                      }).open();
-                    });
-                  }
-                });
-              });
-            }
-          }
-        };
-
-        if (containers.length > 0) addWidgetSub(rootSub, '引用容器', containers, true);
-        if (leaves.length > 0) addWidgetSub(rootSub, '引用叶子', leaves, true);
-        if (containers.length > 0) addWidgetSub(rootSub, '复制容器', containers, false);
-        if (leaves.length > 0) addWidgetSub(rootSub, '复制叶子', leaves, false);
       })
     );
   }
@@ -297,7 +248,7 @@ export default class WidgetPlugin extends Plugin {
       id: 'insert-widget',
       name: 'Insert widget at cursor',
       editorCallback: (editor, view) => {
-        new WidgetPickerModal(this.app, this.store, (id) => {
+        new WidgetPickerModal(this.app, this, this.store, (id) => {
           this.insertCodeBlock(editor, id);
         }).open();
       },
