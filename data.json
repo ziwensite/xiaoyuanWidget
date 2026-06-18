@@ -99,6 +99,49 @@
       "id": "20260618164045_gb52",
       "createdAt": 1781772045564,
       "updatedAt": 1781772045564
+    },
+    {
+      "name": "笔记总数",
+      "type": "stats-card",
+      "settings": {
+        "dimension": "total"
+      },
+      "children": [],
+      "id": "20260618222117_jez3",
+      "createdAt": 1781792477813,
+      "updatedAt": 1781792477813
+    },
+    {
+      "name": "本周笔记",
+      "type": "stats-card",
+      "settings": {
+        "dimension": "week"
+      },
+      "children": [],
+      "id": "20260618223249_1fh9",
+      "createdAt": 1781793169644,
+      "updatedAt": 1781793169644
+    },
+    {
+      "name": "笔记数量 (副本)",
+      "type": "container-row",
+      "settings": {},
+      "children": [],
+      "id": "20260618223254_6f6x",
+      "createdAt": 1781793174265,
+      "updatedAt": 1781793174265
+    },
+    {
+      "name": "笔记数量",
+      "type": "container-row",
+      "settings": {},
+      "children": [
+        "20260618102724_34wj",
+        "20260618102823_9hj9"
+      ],
+      "id": "20260618223257_caji",
+      "createdAt": 1781793177859,
+      "updatedAt": 1781793177859
     }
   ]
 }

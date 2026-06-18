@@ -1749,14 +1749,14 @@ var WidgetPickerModal = class extends import_obsidian4.Modal {
       modal.open();
     });
     const newLeafBtn = toolbar.createEl("button", { cls: "xyw-picker-btn", text: t("btn-new-leaf") });
-    newLeafBtn.addEventListener("click", () => {
-      const modal = new WidgetEditorModal(this.app, this.plugin, this.store, null, (widget) => {
-        if (widget) {
-          this.onInsert(widget.id);
-          this.close();
-        }
-      });
-      modal.open();
+    newLeafBtn.addEventListener("click", async () => {
+      const temp = await this.store.addWidget({ name: t("type-stats-card"), type: "stats-card", settings: {} });
+      const modal = new ChildEditorModal(this.app, this.store, temp.id);
+      const id = await modal.openAndGet();
+      if (id) {
+        this.onInsert(id);
+        this.close();
+      }
     });
     const searchInput = contentEl.createEl("input", {
       cls: "xyw-picker-search",
@@ -1818,12 +1818,21 @@ var WidgetPickerModal = class extends import_obsidian4.Modal {
       delete copy.createdAt;
       delete copy.updatedAt;
       const saved = await this.store.addWidget(copy);
-      new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, (widget) => {
-        if (widget) {
-          this.onInsert(widget.id);
+      if (!isContainerType(w.type)) {
+        const modal = new ChildEditorModal(this.app, this.store, saved.id);
+        const id = await modal.openAndGet();
+        if (id) {
+          this.onInsert(id);
           this.close();
         }
-      }).open();
+      } else {
+        new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, (widget) => {
+          if (widget) {
+            this.onInsert(widget.id);
+            this.close();
+          }
+        }).open();
+      }
     });
   }
   onClose() {

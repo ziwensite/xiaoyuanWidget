@@ -1,10 +1,10 @@
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal } from 'obsidian';
 import { WidgetStore } from '../store/WidgetStore';
 import { t } from '../i18n';
 import { WidgetDefinition } from '../types';
 import { isContainerType } from '../modals/_shared';
 import type WidgetPlugin from '../main';
-import { WidgetEditorModal } from '../modals';
+import { WidgetEditorModal, ChildEditorModal } from '../modals';
 
 export class WidgetPickerModal extends Modal {
   private store: WidgetStore;
@@ -41,11 +41,11 @@ export class WidgetPickerModal extends Modal {
     });
 
     const newLeafBtn = toolbar.createEl('button', { cls: 'xyw-picker-btn', text: t('btn-new-leaf') });
-    newLeafBtn.addEventListener('click', () => {
-      const modal = new WidgetEditorModal(this.app, this.plugin, this.store, null, (widget) => {
-        if (widget) { this.onInsert(widget.id); this.close(); }
-      });
-      modal.open();
+    newLeafBtn.addEventListener('click', async () => {
+      const temp = await this.store.addWidget({ name: t('type-stats-card'), type: 'stats-card', settings: {} });
+      const modal = new ChildEditorModal(this.app, this.store, temp.id);
+      const id = await modal.openAndGet();
+      if (id) { this.onInsert(id); this.close(); }
     });
 
     const searchInput = contentEl.createEl('input', {
@@ -117,9 +117,15 @@ export class WidgetPickerModal extends Modal {
       const copy = JSON.parse(JSON.stringify(w));
       delete copy.id; delete copy.createdAt; delete copy.updatedAt;
       const saved = await this.store.addWidget(copy);
-      new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, (widget) => {
-        if (widget) { this.onInsert(widget.id); this.close(); }
-      }).open();
+      if (!isContainerType(w.type)) {
+        const modal = new ChildEditorModal(this.app, this.store, saved.id);
+        const id = await modal.openAndGet();
+        if (id) { this.onInsert(id); this.close(); }
+      } else {
+        new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, (widget) => {
+          if (widget) { this.onInsert(widget.id); this.close(); }
+        }).open();
+      }
     });
   }
 
