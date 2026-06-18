@@ -1,13 +1,15 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { t } from '../../i18n';
+import { applyFilters } from '../../utils/StyleUtils';
 
 export class RandomNoteWidget extends BaseWidget {
   getType(): string { return 'random-note'; }
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
     const app = (window as any).app;
-    const files = app.vault.getMarkdownFiles();
+    let files = app.vault.getMarkdownFiles();
+    files = applyFilters(files, config.filters);
     if (!files.length) {
       container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-data') });
       return;

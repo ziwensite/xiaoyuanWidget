@@ -19,7 +19,7 @@ export class BacklinksWidget extends BaseWidget {
     for (const [path, links] of Object.entries(resolvedLinks)) {
       if ((links as Record<string, number>)[activeFile.path]) {
         const f = app.vault.getAbstractFileByPath(path);
-        if (f) backlinkFiles.push(f);
+        if (f && (f as any).stat) backlinkFiles.push(f);
       }
     }
 

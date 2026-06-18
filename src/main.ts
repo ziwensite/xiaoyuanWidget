@@ -14,6 +14,7 @@ import { RandomNoteWidget } from './widgets/built-in/RandomNote';
 import { CodeBlockRenderer } from './renderer/CodeBlockRenderer';
 import { WidgetPickerModal } from './ui/WidgetPickerModal';
 import { WidgetEditorModal } from './modals';
+import { isContainerType } from './modals/_shared';
 import { WidgetSettingTab } from './settings';
 import { t, getLang, setLang } from './i18n';
 import { WidgetMeta } from './types';
@@ -209,10 +210,7 @@ export default class WidgetPlugin extends Plugin {
           });
         });
 
-        const widgets = this.store.getWidgets().filter(w => {
-          const containerTypes: ReadonlySet<string> = new Set(['container-row', 'container-col', 'container-tab-h', 'container-tab-v']);
-          return containerTypes.has(w.type);
-        });
+const widgets = this.store.getWidgets();
         if (widgets.length === 0) {
           rootSub.addItem((item: any) => {
             item.setTitle(t('label-no-widgets'));
@@ -226,32 +224,57 @@ export default class WidgetPlugin extends Plugin {
           item.setTitle(t('context-insert-wgt'));
           insertSub = item.setSubmenu();
         });
+        if (!insertSub) return;
 
-        const grouped = new Map<string, typeof widgets>();
-        for (const w of widgets) {
-          const list = grouped.get(w.type) || [];
-          list.push(w);
-          grouped.set(w.type, list);
+        const containerWidgets = widgets.filter(w => isContainerType(w.type));
+        const leafWidgets = widgets.filter(w => !isContainerType(w.type));
+
+        if (leafWidgets.length > 0) {
+          let leafSub: any = null;
+          insertSub.addItem((item: any) => {
+            item.setTitle('Leaf Widgets');
+            leafSub = item.setSubmenu();
+          });
+          if (leafSub) {
+            for (const w of leafWidgets) {
+              leafSub.addItem((item: any) => {
+                item.setTitle(w.name);
+                item.onClick(() => {
+                  this.insertCodeBlock(editor, w.id);
+                });
+              });
+            }
+          }
         }
 
-        const typeOrder = getAllWidgetTypes();
-        for (const type of typeOrder) {
-          const list = grouped.get(type);
-          if (!list || list.length === 0) continue;
+        if (containerWidgets.length > 0) {
+          const grouped = new Map<string, typeof containerWidgets>();
+          for (const w of containerWidgets) {
+            const list = grouped.get(w.type) || [];
+            list.push(w);
+            grouped.set(w.type, list);
+          }
 
-          let typeSub: any = null;
-          insertSub.addItem((item: any) => {
-            item.setTitle(t(`type-${type}`));
-            typeSub = item.setSubmenu();
-          });
+          const typeOrder = getAllWidgetTypes();
+          for (const type of typeOrder) {
+            const list = grouped.get(type);
+            if (!list || list.length === 0) continue;
 
-          for (const w of list) {
-            typeSub.addItem((item: any) => {
-              item.setTitle(w.name);
-              item.onClick(() => {
-                this.insertCodeBlock(editor, w.id);
-              });
+            let typeSub: any = null;
+            insertSub.addItem((item: any) => {
+              item.setTitle(t(`type-${type}`));
+              typeSub = item.setSubmenu();
             });
+            if (!typeSub) continue;
+
+            for (const w of list) {
+              typeSub.addItem((item: any) => {
+                item.setTitle(w.name);
+                item.onClick(() => {
+                  this.insertCodeBlock(editor, w.id);
+                });
+              });
+            }
           }
         }
       })

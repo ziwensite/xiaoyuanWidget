@@ -25,11 +25,10 @@ button.xyw-edit-overlay:hover {
 
 .xyw-card-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 900;
   color: var(--text-muted);
-  margin-bottom: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 8px; /* 分割线下方留白 */
 }
 
 .xyw-error {
@@ -420,13 +419,14 @@ button.xyw-edit-overlay:hover {
   border-radius: 8px;
   background: var(--background-primary);
 }
+.xyw-editor-modal {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
 .xyw-editor-modal h3 {
   font-size: 14px;
   font-weight: 600;
   margin: 0;
-}
-.xyw-editor-modal h3:first-child {
-  margin-top: 0;
 }
 .xyw-config-card .setting-item,
 .xyw-style-section .setting-item,
@@ -463,9 +463,6 @@ button.xyw-edit-overlay:hover {
 }
 .xyw-filter-logic {
   font-weight: 600;
-}
-.xyw-filter-value {
-  width: 100px;
 }
 .xyw-filter-value {
   width: 100px;

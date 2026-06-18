@@ -91,6 +91,7 @@ var WidgetStore = class {
   }
   async importWidgets(defs) {
     const now = Date.now();
+    let count = 0;
     for (const def of defs) {
       if (!this.getWidget(def.id)) {
         this.data.widgets.push({
@@ -98,10 +99,11 @@ var WidgetStore = class {
           createdAt: now,
           updatedAt: now
         });
+        count++;
       }
     }
     await this.saveFn();
-    return defs.length;
+    return count;
   }
   exportWidgets() {
     return JSON.parse(JSON.stringify(this.data.widgets));
@@ -727,6 +729,7 @@ var BaseContainerTabWidget = class extends BaseWidget {
     super(...arguments);
     this.activeIndex = 0;
     this.tabContentEl = null;
+    this.childWidget = null;
   }
   async renderContent(container, config) {
     const children = config.children ?? [];
@@ -771,6 +774,10 @@ var BaseContainerTabWidget = class extends BaseWidget {
     }
   }
   async renderChildContent(container, child) {
+    if (this.childWidget) {
+      this.childWidget.destroy();
+      this.childWidget = null;
+    }
     const widget = createWidget(child.type);
     if (widget) {
       await widget.render(container, {
@@ -781,9 +788,14 @@ var BaseContainerTabWidget = class extends BaseWidget {
         style: child.style,
         filters: child.filters
       });
+      this.childWidget = widget;
     }
   }
   destroy() {
+    if (this.childWidget) {
+      this.childWidget.destroy();
+      this.childWidget = null;
+    }
     this.tabContentEl = null;
     this.activeIndex = 0;
     super.destroy();
@@ -817,7 +829,7 @@ var BacklinksWidget = class extends BaseWidget {
     for (const [path, links] of Object.entries(resolvedLinks)) {
       if (links[activeFile.path]) {
         const f = app.vault.getAbstractFileByPath(path);
-        if (f)
+        if (f && f.stat)
           backlinkFiles.push(f);
       }
     }
@@ -845,7 +857,8 @@ var RandomNoteWidget = class extends BaseWidget {
   }
   async renderContent(container, config) {
     const app = window.app;
-    const files = app.vault.getMarkdownFiles();
+    let files = app.vault.getMarkdownFiles();
+    files = applyFilters(files, config.filters);
     if (!files.length) {
       container.createEl("div", { cls: "xyw-empty", text: t("msg-no-data") });
       return;
@@ -1488,6 +1501,7 @@ var import_obsidian3 = require("obsidian");
 var CodeBlockRenderer = class {
   constructor(store, plugin) {
     this.activeInstances = /* @__PURE__ */ new Set();
+    this.containerMap = /* @__PURE__ */ new Map();
     this.cleanupFns = [];
     this.store = store;
     this.plugin = plugin;
@@ -1496,7 +1510,8 @@ var CodeBlockRenderer = class {
   setupAutoRefresh() {
     const refreshAll = () => {
       for (const widget of this.activeInstances) {
-        widget.refresh();
+        widget.refresh().catch(() => {
+        });
       }
     };
     const vault = this.plugin.app.vault;
@@ -1513,6 +1528,7 @@ var CodeBlockRenderer = class {
     for (const widget of this.activeInstances)
       widget.destroy();
     this.activeInstances.clear();
+    this.containerMap.clear();
     this.cleanupFns = [];
   }
   async render(source, container) {
@@ -1536,6 +1552,11 @@ var CodeBlockRenderer = class {
       return;
     }
     try {
+      const oldWidget = this.containerMap.get(container);
+      if (oldWidget) {
+        this.activeInstances.delete(oldWidget);
+        oldWidget.destroy();
+      }
       const mergedSettings = { ...def.settings };
       if (data.settings) {
         Object.assign(mergedSettings, data.settings);
@@ -1549,6 +1570,7 @@ var CodeBlockRenderer = class {
         filters: def.filters
       });
       this.activeInstances.add(widget);
+      this.containerMap.set(container, widget);
     } catch (e) {
       container.empty();
       const message = e instanceof Error ? e.message : String(e);
@@ -1703,7 +1725,7 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
       this.filterText = v.toLowerCase();
       this.display();
     }));
-    let widgets = this.store.getWidgets().filter((w) => isContainerType(w.type));
+    let widgets = this.store.getWidgets();
     if (this.filterText) {
       widgets = widgets.filter(
         (w) => w.name.toLowerCase().includes(this.filterText) || w.id.toLowerCase().includes(this.filterText) || t(`type-${w.type}`).toLowerCase().includes(this.filterText)
@@ -1935,10 +1957,7 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
             }).open();
           });
         });
-        const widgets = this.store.getWidgets().filter((w) => {
-          const containerTypes = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
-          return containerTypes.has(w.type);
-        });
+        const widgets = this.store.getWidgets();
         if (widgets.length === 0) {
           rootSub.addItem((item) => {
             item.setTitle(t("label-no-widgets"));
@@ -1951,29 +1970,54 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
           item.setTitle(t("context-insert-wgt"));
           insertSub = item.setSubmenu();
         });
-        const grouped = /* @__PURE__ */ new Map();
-        for (const w of widgets) {
-          const list = grouped.get(w.type) || [];
-          list.push(w);
-          grouped.set(w.type, list);
-        }
-        const typeOrder = getAllWidgetTypes();
-        for (const type of typeOrder) {
-          const list = grouped.get(type);
-          if (!list || list.length === 0)
-            continue;
-          let typeSub = null;
+        if (!insertSub)
+          return;
+        const containerWidgets = widgets.filter((w) => isContainerType(w.type));
+        const leafWidgets = widgets.filter((w) => !isContainerType(w.type));
+        if (leafWidgets.length > 0) {
+          let leafSub = null;
           insertSub.addItem((item) => {
-            item.setTitle(t(`type-${type}`));
-            typeSub = item.setSubmenu();
+            item.setTitle("Leaf Widgets");
+            leafSub = item.setSubmenu();
           });
-          for (const w of list) {
-            typeSub.addItem((item) => {
-              item.setTitle(w.name);
-              item.onClick(() => {
-                this.insertCodeBlock(editor, w.id);
+          if (leafSub) {
+            for (const w of leafWidgets) {
+              leafSub.addItem((item) => {
+                item.setTitle(w.name);
+                item.onClick(() => {
+                  this.insertCodeBlock(editor, w.id);
+                });
               });
+            }
+          }
+        }
+        if (containerWidgets.length > 0) {
+          const grouped = /* @__PURE__ */ new Map();
+          for (const w of containerWidgets) {
+            const list = grouped.get(w.type) || [];
+            list.push(w);
+            grouped.set(w.type, list);
+          }
+          const typeOrder = getAllWidgetTypes();
+          for (const type of typeOrder) {
+            const list = grouped.get(type);
+            if (!list || list.length === 0)
+              continue;
+            let typeSub = null;
+            insertSub.addItem((item) => {
+              item.setTitle(t(`type-${type}`));
+              typeSub = item.setSubmenu();
             });
+            if (!typeSub)
+              continue;
+            for (const w of list) {
+              typeSub.addItem((item) => {
+                item.setTitle(w.name);
+                item.onClick(() => {
+                  this.insertCodeBlock(editor, w.id);
+                });
+              });
+            }
           }
         }
       })

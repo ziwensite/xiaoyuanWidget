@@ -68,7 +68,7 @@ export class WidgetSettingTab extends PluginSettingTab {
           this.display();
         }));
 
-    let widgets = this.store.getWidgets().filter(w => isContainerType(w.type));
+    let widgets = this.store.getWidgets();
     if (this.filterText) {
       widgets = widgets.filter(w =>
         w.name.toLowerCase().includes(this.filterText) ||

@@ -1,4 +1,4 @@
-import { WidgetConfig, ChildWidgetConfig, AnyWidgetType } from '../../types';
+import { WidgetConfig, ChildWidgetConfig, AnyWidgetType, IWidget } from '../../types';
 import { BaseWidget } from '../base';
 import { createWidget } from '../registry';
 import { t } from '../../i18n';
@@ -6,6 +6,7 @@ import { t } from '../../i18n';
 export abstract class BaseContainerTabWidget extends BaseWidget {
   protected activeIndex = 0;
   protected tabContentEl: HTMLElement | null = null;
+  private childWidget: IWidget | null = null;
 
   abstract getType(): string;
 
@@ -59,6 +60,10 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
   }
 
   private async renderChildContent(container: HTMLElement, child: ChildWidgetConfig): Promise<void> {
+    if (this.childWidget) {
+      this.childWidget.destroy();
+      this.childWidget = null;
+    }
     const widget = createWidget(child.type as AnyWidgetType);
     if (widget) {
       await widget.render(container, {
@@ -69,10 +74,15 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
         style: child.style,
         filters: child.filters,
       });
+      this.childWidget = widget;
     }
   }
 
   destroy(): void {
+    if (this.childWidget) {
+      this.childWidget.destroy();
+      this.childWidget = null;
+    }
     this.tabContentEl = null;
     this.activeIndex = 0;
     super.destroy();

@@ -1,6 +1,6 @@
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
-import { t, getLang } from '../../i18n';
+import { t } from '../../i18n';
 import { applyFilters } from '../../utils/StyleUtils';
 
 export class StatsCardWidget extends BaseWidget {

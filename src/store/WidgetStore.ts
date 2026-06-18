@@ -61,6 +61,7 @@ export class WidgetStore {
 
   async importWidgets(defs: Omit<WidgetDefinition, 'createdAt' | 'updatedAt'>[]): Promise<number> {
     const now = Date.now();
+    let count = 0;
     for (const def of defs) {
       if (!this.getWidget(def.id)) {
         this.data.widgets.push({
@@ -68,10 +69,11 @@ export class WidgetStore {
           createdAt: now,
           updatedAt: now,
         });
+        count++;
       }
     }
     await this.saveFn();
-    return defs.length;
+    return count;
   }
 
   exportWidgets(): WidgetDefinition[] {

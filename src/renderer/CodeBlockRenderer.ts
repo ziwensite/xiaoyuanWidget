@@ -9,6 +9,7 @@ export class CodeBlockRenderer {
   private store: WidgetStore;
   private plugin: WidgetPlugin;
   private activeInstances: Set<IWidget> = new Set();
+  private containerMap: Map<HTMLElement, IWidget> = new Map();
   private cleanupFns: (() => void)[] = [];
 
   constructor(store: WidgetStore, plugin: WidgetPlugin) {
@@ -20,7 +21,7 @@ export class CodeBlockRenderer {
   private setupAutoRefresh(): void {
     const refreshAll = () => {
       for (const widget of this.activeInstances) {
-        widget.refresh();
+        widget.refresh().catch(() => {});
       }
     };
 
@@ -38,6 +39,7 @@ export class CodeBlockRenderer {
     for (const cleanup of this.cleanupFns) cleanup();
     for (const widget of this.activeInstances) widget.destroy();
     this.activeInstances.clear();
+    this.containerMap.clear();
     this.cleanupFns = [];
   }
 
@@ -66,6 +68,12 @@ export class CodeBlockRenderer {
     }
 
     try {
+      const oldWidget = this.containerMap.get(container);
+      if (oldWidget) {
+        this.activeInstances.delete(oldWidget);
+        oldWidget.destroy();
+      }
+
       const mergedSettings = { ...def.settings };
       if (data.settings) {
         Object.assign(mergedSettings, data.settings);
@@ -79,6 +87,7 @@ export class CodeBlockRenderer {
         filters: def.filters,
       });
       this.activeInstances.add(widget);
+      this.containerMap.set(container, widget);
     } catch (e: unknown) {
       container.empty();
       const message = e instanceof Error ? e.message : String(e);
