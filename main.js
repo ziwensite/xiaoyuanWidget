@@ -986,6 +986,10 @@ var ChildEditorModal = class extends import_obsidian.Modal {
     this.widgetId = widgetId;
     this.result = null;
     this.resolve = null;
+    this.editingName = "";
+    this.editingType = "stats-card";
+    this.editingSettings = {};
+    this.editingFilters = [];
   }
   async openAndGet() {
     return new Promise((resolve) => {
@@ -998,42 +1002,32 @@ var ChildEditorModal = class extends import_obsidian.Modal {
     contentEl.empty();
     contentEl.addClass("xyw-editor-modal");
     const existing = this.widgetId ? this.store.getWidget(this.widgetId) : null;
-    const isNew = !existing;
-    let name = existing?.name ?? "";
-    let type = existing?.type ?? "stats-card";
-    let settings = existing?.settings ? { ...existing.settings } : {};
-    let style = existing?.style ? JSON.parse(JSON.stringify(existing.style)) : void 0;
-    let filters = existing?.filters ? JSON.parse(JSON.stringify(existing.filters)) : [];
-    const initSettings = (t3) => {
-      settings = {};
-      const m = getWidgetMeta(t3);
-      if (m) {
-        for (const f of m.settingSchema) {
-          settings[f.key] = f.defaultValue;
-        }
-      }
-    };
+    this.editingName = existing?.name ?? "";
+    this.editingType = existing?.type ?? "stats-card";
+    this.editingSettings = existing?.settings ? { ...existing.settings } : {};
+    this.editingStyle = existing?.style ? JSON.parse(JSON.stringify(existing.style)) : void 0;
+    this.editingFilters = existing?.filters ? JSON.parse(JSON.stringify(existing.filters)) : [];
     const settingsSection = contentEl.createEl("div");
     const styleSection = contentEl.createEl("div");
     const filterSection = contentEl.createEl("div");
     const renderAll = () => {
-      this.renderSettings(settingsSection, name, type, settings);
-      this.renderTitleStyle(styleSection, style);
-      this.renderContentStyle(styleSection, style);
-      this.renderFilterSection(filterSection, filters);
+      this.renderSettings(settingsSection);
+      this.renderTitleStyle(styleSection);
+      this.renderContentStyle(styleSection);
+      this.renderFilterSection(filterSection);
     };
     renderAll();
     new import_obsidian.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-save")).setCta().onClick(async () => {
-      if (!name.trim()) {
+      if (!this.editingName.trim()) {
         new import_obsidian.Notice("Name is required");
         return;
       }
-      const data = { name: name.trim(), type, settings, children: [] };
-      if (style && Object.keys(style).length > 0)
-        data.style = style;
-      if (filters.length > 0)
-        data.filters = filters;
-      if (isNew) {
+      const data = { name: this.editingName.trim(), type: this.editingType, settings: this.editingSettings, children: [] };
+      if (this.editingStyle && Object.keys(this.editingStyle).length > 0)
+        data.style = this.editingStyle;
+      if (this.editingFilters.length > 0)
+        data.filters = this.editingFilters;
+      if (!existing) {
         const saved = await this.store.addWidget(data);
         this.result = saved.id;
       } else {
@@ -1046,12 +1040,12 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       this.close();
     }));
   }
-  renderSettings(container, name, type, settings) {
+  renderSettings(container) {
     container.empty();
     container.createEl("h3", { text: t("label-config") });
     const card = container.createEl("div", { cls: "xyw-style-section" });
-    new import_obsidian.Setting(card).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
-      name = v;
+    new import_obsidian.Setting(card).setName(t("label-name")).addText((tc) => tc.setValue(this.editingName).onChange((v) => {
+      this.editingName = v;
     }));
     new import_obsidian.Setting(container).setName(t("label-type")).addDropdown((dd) => {
       for (const m of getAllWidgetMetas()) {
@@ -1059,28 +1053,28 @@ var ChildEditorModal = class extends import_obsidian.Modal {
           dd.addOption(m.type, t(`type-${m.type}`));
         }
       }
-      dd.setValue(type);
+      dd.setValue(this.editingType);
       dd.onChange((v) => {
-        type = v;
-        const meta2 = getWidgetMeta(type);
-        settings = {};
+        this.editingType = v;
+        this.editingSettings = {};
+        const meta2 = getWidgetMeta(this.editingType);
         if (meta2) {
           for (const f of meta2.settingSchema) {
-            settings[f.key] = f.defaultValue;
+            this.editingSettings[f.key] = f.defaultValue;
           }
         }
-        this.onOpen();
+        this.renderSettings(container);
       });
     });
-    const meta = getWidgetMeta(type);
+    const meta = getWidgetMeta(this.editingType);
     if (meta && meta.settingSchema.length > 0) {
       for (const field of meta.settingSchema) {
         const setting = new import_obsidian.Setting(card).setName(t(field.labelKey));
-        const currentVal = settings[field.key] ?? field.defaultValue;
+        const currentVal = this.editingSettings[field.key] ?? field.defaultValue;
         switch (field.type) {
           case "text":
             setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-              settings[field.key] = v;
+              this.editingSettings[field.key] = v;
             }));
             break;
           case "number":
@@ -1089,13 +1083,13 @@ var ChildEditorModal = class extends import_obsidian.Modal {
               t3.setValue(String(currentVal));
               t3.inputEl.type = "number";
               t3.onChange((v) => {
-                settings[field.key] = Number(v) || 0;
+                this.editingSettings[field.key] = Number(v) || 0;
               });
             });
             break;
           case "textarea":
             setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-              settings[field.key] = v;
+              this.editingSettings[field.key] = v;
             }));
             break;
           case "select":
@@ -1106,7 +1100,7 @@ var ChildEditorModal = class extends import_obsidian.Modal {
                   dd.addOption(opt.value, opt.label);
                 dd.setValue(String(currentVal));
                 dd.onChange((v) => {
-                  settings[field.key] = v;
+                  this.editingSettings[field.key] = v;
                 });
               });
             }
@@ -1115,7 +1109,7 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       }
     }
   }
-  renderTitleStyle(container, style) {
+  renderTitleStyle(container) {
     container.empty();
     container.createEl("h3", { text: t("style-title") });
     const card = container.createEl("div", { cls: "xyw-style-section" });
@@ -1123,45 +1117,45 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       dd.addOption("left", t("style-align-left"));
       dd.addOption("center", t("style-align-center"));
       dd.addOption("right", t("style-align-right"));
-      dd.setValue(style?.title?.align ?? "left");
+      dd.setValue(this.editingStyle?.title?.align ?? "left");
       dd.onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.title)
-          style.title = {};
-        style.title.align = v;
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.title)
+          this.editingStyle.title = {};
+        this.editingStyle.title.align = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-title-color")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(style?.title?.color ?? "").onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.title)
-          style.title = {};
-        style.title.color = v;
+      tc.setValue(this.editingStyle?.title?.color ?? "").onChange((v) => {
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.title)
+          this.editingStyle.title = {};
+        this.editingStyle.title.color = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-title-bg")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(style?.title?.bgColor ?? "").onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.title)
-          style.title = {};
-        style.title.bgColor = v;
+      tc.setValue(this.editingStyle?.title?.bgColor ?? "").onChange((v) => {
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.title)
+          this.editingStyle.title = {};
+        this.editingStyle.title.bgColor = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-title-size")).addText((tc) => {
       tc.inputEl.type = "number";
       tc.inputEl.placeholder = "14";
-      tc.setValue(style?.title?.fontSize?.replace(/px$/, "") ?? "");
+      tc.setValue(this.editingStyle?.title?.fontSize?.replace(/px$/, "") ?? "");
       tc.onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.title)
-          style.title = {};
-        style.title.fontSize = v ? `${v}px` : "";
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.title)
+          this.editingStyle.title = {};
+        this.editingStyle.title.fontSize = v ? `${v}px` : "";
       });
     }).addDropdown((dd) => {
       dd.addOption("px", "px");
@@ -1173,52 +1167,52 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       dd.addOption("bold", "bold");
       for (let i = 100; i <= 900; i += 100)
         dd.addOption(String(i), String(i));
-      dd.setValue(style?.title?.fontWeight ?? "");
+      dd.setValue(this.editingStyle?.title?.fontWeight ?? "");
       dd.onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.title)
-          style.title = {};
-        style.title.fontWeight = v || void 0;
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.title)
+          this.editingStyle.title = {};
+        this.editingStyle.title.fontWeight = v || void 0;
       });
     });
   }
-  renderContentStyle(container, style) {
+  renderContentStyle(container) {
     container.createEl("h3", { text: t("style-content") });
     const card = container.createEl("div", { cls: "xyw-style-section" });
     new import_obsidian.Setting(card).setName(t("style-content-align")).addDropdown((dd) => {
       dd.addOption("left", t("style-align-left"));
       dd.addOption("center", t("style-align-center"));
       dd.addOption("right", t("style-align-right"));
-      dd.setValue(style?.content?.align ?? "left");
+      dd.setValue(this.editingStyle?.content?.align ?? "left");
       dd.onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.content)
-          style.content = {};
-        style.content.align = v;
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.content)
+          this.editingStyle.content = {};
+        this.editingStyle.content.align = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-content-color")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(style?.content?.color ?? "").onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.content)
-          style.content = {};
-        style.content.color = v;
+      tc.setValue(this.editingStyle?.content?.color ?? "").onChange((v) => {
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.content)
+          this.editingStyle.content = {};
+        this.editingStyle.content.color = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-content-size")).addText((tc) => {
       tc.inputEl.type = "number";
       tc.inputEl.placeholder = "13";
-      tc.setValue(style?.content?.fontSize?.replace(/px$/, "") ?? "");
+      tc.setValue(this.editingStyle?.content?.fontSize?.replace(/px$/, "") ?? "");
       tc.onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.content)
-          style.content = {};
-        style.content.fontSize = v ? `${v}px` : "";
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.content)
+          this.editingStyle.content = {};
+        this.editingStyle.content.fontSize = v ? `${v}px` : "";
       });
     }).addDropdown((dd) => {
       dd.addOption("px", "px");
@@ -1230,25 +1224,25 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       dd.addOption("bold", "bold");
       for (let i = 100; i <= 900; i += 100)
         dd.addOption(String(i), String(i));
-      dd.setValue(style?.content?.fontWeight ?? "");
+      dd.setValue(this.editingStyle?.content?.fontWeight ?? "");
       dd.onChange((v) => {
-        if (!style)
-          style = {};
-        if (!style.content)
-          style.content = {};
-        style.content.fontWeight = v || void 0;
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        if (!this.editingStyle.content)
+          this.editingStyle.content = {};
+        this.editingStyle.content.fontWeight = v || void 0;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-border-color")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(style?.borderColor ?? "").onChange((v) => {
-        if (!style)
-          style = {};
-        style.borderColor = v;
+      tc.setValue(this.editingStyle?.borderColor ?? "").onChange((v) => {
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        this.editingStyle.borderColor = v;
       });
     });
-    this.renderSizeSetting(card, t("style-width"), style, "width");
-    this.renderSizeSetting(card, t("style-height"), style, "height");
+    this.renderSizeSetting(card, t("style-width"), "width");
+    this.renderSizeSetting(card, t("style-height"), "height");
   }
   parseSizeValue(val) {
     if (!val)
@@ -1260,8 +1254,8 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       return { num: "", unit: "auto" };
     return { num: match[1], unit: match[2] || "px" };
   }
-  renderSizeSetting(card, label, style, prop) {
-    const parsed = this.parseSizeValue(style?.[prop]);
+  renderSizeSetting(card, label, prop) {
+    const parsed = this.parseSizeValue(this.editingStyle?.[prop]);
     let textComp;
     new import_obsidian.Setting(card).setName(label).addText((tc) => {
       textComp = tc;
@@ -1269,11 +1263,11 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       tc.inputEl.placeholder = "auto";
       tc.setValue(parsed.num);
       tc.onChange((v) => {
-        if (!style)
-          style = {};
-        const cur = style[prop] || "";
+        if (!this.editingStyle)
+          this.editingStyle = {};
+        const cur = this.editingStyle[prop] || "";
         const unit = cur.replace(/^[\d.]+/, "") || "px";
-        style[prop] = v ? `${v}${unit}` : "";
+        this.editingStyle[prop] = v ? `${v}${unit}` : "";
       });
       if (parsed.unit === "auto")
         tc.inputEl.disabled = true;
@@ -1283,35 +1277,35 @@ var ChildEditorModal = class extends import_obsidian.Modal {
         dd.addOption(u, u);
       dd.setValue(parsed.unit);
       dd.onChange((v) => {
-        if (!style)
-          style = {};
+        if (!this.editingStyle)
+          this.editingStyle = {};
         if (v === "auto") {
-          style[prop] = "auto";
+          this.editingStyle[prop] = "auto";
           textComp.inputEl.disabled = true;
         } else {
           textComp.inputEl.disabled = false;
-          style[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : "";
+          this.editingStyle[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : "";
         }
       });
     });
   }
-  renderFilterSection(container, filters) {
+  renderFilterSection(container) {
     container.empty();
     container.createEl("h3", { text: t("filter-title") });
     const card = container.createEl("div", { cls: "xyw-filter-section" });
     const addBtn = card.createEl("button", { cls: "xyw-filter-add-btn" });
     addBtn.textContent = "+ " + t("filter-add");
     addBtn.addEventListener("click", () => {
-      filters.push({ source: "fileprop", field: "name", operator: "contains", value: "", logic: "and" });
-      this.renderFilterRows(card, filters);
+      this.editingFilters.push({ source: "fileprop", field: "name", operator: "contains", value: "", logic: "and" });
+      this.renderFilterRows(card);
     });
-    this.renderFilterRows(card, filters);
+    this.renderFilterRows(card);
   }
-  renderFilterRows(container, filters) {
+  renderFilterRows(container) {
     container.findAll(".xyw-filter-row").forEach((el) => el.remove());
-    for (let i = 0; i < filters.length; i++) {
+    for (let i = 0; i < this.editingFilters.length; i++) {
       const row = container.createEl("div", { cls: "xyw-filter-row" });
-      const rule = filters[i];
+      const rule = this.editingFilters[i];
       if (i > 0) {
         const logicSelect = row.createEl("select", { cls: "xyw-filter-logic dropdown" });
         logicSelect.createEl("option", { value: "and", text: "AND" });
@@ -1380,9 +1374,9 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       const delBtn = row.createEl("button", { cls: "xyw-filter-del" });
       delBtn.textContent = "\xD7";
       delBtn.addEventListener("click", () => {
-        filters.splice(i, 1);
+        this.editingFilters.splice(i, 1);
         container.querySelectorAll(".xyw-filter-row").forEach((el) => el.remove());
-        this.renderFilterRows(container, filters);
+        this.renderFilterRows(container);
       });
     }
   }
@@ -1681,9 +1675,16 @@ var CodeBlockRenderer = class {
     (0, import_obsidian3.setIcon)(editBtn, "pencil");
     editBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
-      new WidgetEditorModal(this.plugin.app, this.plugin, this.store, data.id, () => {
-        this.render(source, container);
-      }).open();
+      if (!isContainerType(def.type)) {
+        const modal = new ChildEditorModal(this.plugin.app, this.store, data.id);
+        modal.openAndGet().then(() => {
+          this.render(source, container);
+        });
+      } else {
+        new WidgetEditorModal(this.plugin.app, this.plugin, this.store, data.id, () => {
+          this.render(source, container);
+        }).open();
+      }
     });
   }
   parseSource(source) {

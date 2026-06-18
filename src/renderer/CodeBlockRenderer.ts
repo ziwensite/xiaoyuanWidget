@@ -2,7 +2,8 @@ import { WidgetStore } from '../store/WidgetStore';
 import { createWidget } from '../widgets/registry';
 import { WidgetCodeBlockData, IWidget, WidgetDefinition, ChildWidgetConfig } from '../types';
 import type WidgetPlugin from '../main';
-import { WidgetEditorModal } from '../modals';
+import { WidgetEditorModal, ChildEditorModal } from '../modals';
+import { isContainerType } from '../modals/_shared';
 import { setIcon } from 'obsidian';
 
 export class CodeBlockRenderer {
@@ -109,9 +110,16 @@ export class CodeBlockRenderer {
     setIcon(editBtn, 'pencil');
     editBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      new WidgetEditorModal(this.plugin.app, this.plugin, this.store, data.id, () => {
-        this.render(source, container);
-      }).open();
+      if (!isContainerType(def.type)) {
+        const modal = new ChildEditorModal(this.plugin.app, this.store, data.id);
+        modal.openAndGet().then(() => {
+          this.render(source, container);
+        });
+      } else {
+        new WidgetEditorModal(this.plugin.app, this.plugin, this.store, data.id, () => {
+          this.render(source, container);
+        }).open();
+      }
     });
   }
 
