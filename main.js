@@ -398,7 +398,7 @@ var translations = {
   "title-pick-widget": { en: "Select Widget", zh: "\u9009\u62E9\u6302\u4EF6" },
   "title-widget-preview": { en: "Preview", zh: "\u9884\u89C8" },
   "btn-new-container": { en: "New Container", zh: "\u65B0\u5EFA\u5BB9\u5668" },
-  "btn-new-leaf": { en: "New Widget", zh: "\u65B0\u5EFA\u5B50\u90E8\u4EF6" },
+  "btn-new-leaf": { en: "New Leaf Widget", zh: "\u65B0\u5EFA\u53F6\u5B50" },
   "btn-insert-ref": { en: "Insert", zh: "\u5F15\u7528" },
   "btn-duplicate": { en: "Duplicate", zh: "\u590D\u5236" },
   "label-filter": { en: "Filter...", zh: "\u7B5B\u9009..." },
@@ -1455,7 +1455,7 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
       new import_obsidian2.ButtonComponent(leftGroup).setButtonText("\u5F15\u7528").onClick((event) => {
         const leaves = this.store.getLeafWidgets();
         if (leaves.length === 0) {
-          new import_obsidian2.Notice("\u6682\u65E0\u5B50\u90E8\u4EF6");
+          new import_obsidian2.Notice("\u6682\u65E0\u53F6\u5B50");
           return;
         }
         const menu = new import_obsidian2.Menu();
@@ -1473,7 +1473,7 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
       new import_obsidian2.ButtonComponent(leftGroup).setButtonText("\u590D\u5236").onClick((event) => {
         const leaves = this.store.getLeafWidgets();
         if (leaves.length === 0) {
-          new import_obsidian2.Notice("\u6682\u65E0\u5B50\u90E8\u4EF6");
+          new import_obsidian2.Notice("\u6682\u65E0\u53F6\u5B50");
           return;
         }
         const menu = new import_obsidian2.Menu();
@@ -2201,7 +2201,7 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
       this.app.workspace.on("editor-menu", (menu, editor) => {
         menu.addItem((item) => {
           item.setTitle(t("context-insert-widget"));
-          item.setIcon("blocks");
+          item.setIcon("boxes");
           item.onClick(() => {
             new WidgetPickerModal(this.app, this, this.store, (id) => {
               this.insertCodeBlock(editor, id);

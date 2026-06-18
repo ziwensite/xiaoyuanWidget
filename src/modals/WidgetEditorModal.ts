@@ -83,7 +83,7 @@ export class WidgetEditorModal extends Modal {
         .setButtonText('引用')
         .onClick((event) => {
           const leaves = this.store.getLeafWidgets();
-          if (leaves.length === 0) { new Notice('暂无子部件'); return; }
+          if (leaves.length === 0) { new Notice('暂无叶子'); return; }
           const menu = new Menu();
           for (const leaf of leaves) {
             menu.addItem((item) => {
@@ -100,7 +100,7 @@ export class WidgetEditorModal extends Modal {
         .setButtonText('复制')
         .onClick((event) => {
           const leaves = this.store.getLeafWidgets();
-          if (leaves.length === 0) { new Notice('暂无子部件'); return; }
+          if (leaves.length === 0) { new Notice('暂无叶子'); return; }
           const menu = new Menu();
           for (const leaf of leaves) {
             menu.addItem((item) => {

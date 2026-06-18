@@ -37,7 +37,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'title-pick-widget': { en: 'Select Widget', zh: '选择挂件' },
   'title-widget-preview': { en: 'Preview', zh: '预览' },
   'btn-new-container': { en: 'New Container', zh: '新建容器' },
-  'btn-new-leaf': { en: 'New Widget', zh: '新建子部件' },
+  'btn-new-leaf': { en: 'New Leaf Widget', zh: '新建叶子' },
   'btn-insert-ref': { en: 'Insert', zh: '引用' },
   'btn-duplicate': { en: 'Duplicate', zh: '复制' },
   'label-filter': { en: 'Filter...', zh: '筛选...' },

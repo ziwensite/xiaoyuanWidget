@@ -222,7 +222,7 @@ export default class WidgetPlugin extends Plugin {
       this.app.workspace.on('editor-menu', (menu: Menu, editor: Editor) => {
         menu.addItem((item: any) => {
           item.setTitle(t('context-insert-widget'));
-          item.setIcon('blocks');
+          item.setIcon('boxes');
           item.onClick(() => {
             new WidgetPickerModal(this.app, this, this.store, (id) => {
               this.insertCodeBlock(editor, id);
