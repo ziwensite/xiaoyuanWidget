@@ -36,17 +36,82 @@ export function applyWidgetStyle(container: HTMLElement, config: WidgetConfig): 
 
 function getFieldValue(item: any, source: 'yaml' | 'fileprop', field: string): string {
   if (source === 'fileprop') {
+    const app = (window as any).app;
+    const cache = app?.metadataCache?.getFileCache?.(item);
     switch (field) {
-      case 'path': return item.path ?? '';
-      case 'name': return item.name ?? '';
-      case 'ctime': return String(item.stat?.ctime ?? '');
-      case 'mtime': return String(item.stat?.mtime ?? '');
-      case 'size': return String(item.stat?.size ?? '');
-      default: return '';
+      case 'name':      return item.name ?? '';
+      case 'basename':  return item.basename ?? item.name?.replace(/\.[^.]+$/, '') ?? '';
+      case 'ext':       return item.extension ?? item.name?.split('.').pop() ?? '';
+      case 'path':      return item.path ?? '';
+      case 'folder':    return item.parent?.path ?? item.path?.replace(/\/[^/]+$/, '') ?? '';
+      case 'link':      return `[[${item.basename ?? item.name?.replace(/\.[^.]+$/, '')}]]`;
+      case 'ctime':     return String(item.stat?.ctime ?? '');
+      case 'cday':      return item.stat?.ctime ? new Date(item.stat.ctime).toISOString().slice(0, 10) : '';
+      case 'mtime':     return String(item.stat?.mtime ?? '');
+      case 'mday':      return item.stat?.mtime ? new Date(item.stat.mtime).toISOString().slice(0, 10) : '';
+      case 'size':      return String(item.stat?.size ?? '');
+      case 'starred': {
+        const starred = cache?.frontmatter?.starred;
+        return starred != null ? String(starred) : '';
+      }
+      case 'tags': {
+        if (!cache) return '';
+        const tags: string[] = [];
+        if (cache.frontmatter?.tags) {
+          const arr = Array.isArray(cache.frontmatter.tags) ? cache.frontmatter.tags : [cache.frontmatter.tags];
+          tags.push(...arr.map(String));
+        }
+        if (cache.tags) {
+          tags.push(...cache.tags.map((t: any) => t.tag.replace(/^#/, '')));
+        }
+        return [...new Set(tags)].join(', ');
+      }
+      case 'etags': {
+        if (!cache?.tags) return '';
+        return cache.tags.map((t: any) => t.tag).join(', ');
+      }
+      case 'aliases': {
+        if (!cache?.frontmatter?.aliases) return '';
+        const arr = Array.isArray(cache.frontmatter.aliases) ? cache.frontmatter.aliases : [cache.frontmatter.aliases];
+        return arr.map(String).join(', ');
+      }
+      case 'inlinks': {
+        if (!app?.metadataCache?.resolvedLinks) return '';
+        const links = app.metadataCache.resolvedLinks;
+        const incoming: string[] = [];
+        for (const [src, dst] of Object.entries(links)) {
+          if ((dst as Record<string, number>)[item.path]) incoming.push(src);
+        }
+        return incoming.join(', ');
+      }
+      case 'outlinks': {
+        if (!app?.metadataCache?.resolvedLinks) return '';
+        const links = app.metadataCache.resolvedLinks[item.path];
+        return links ? Object.keys(links).join(', ') : '';
+      }
+      case 'lists': {
+        if (!cache?.lists) return '';
+        return cache.lists.map((l: any) => l.text ?? '').join(', ');
+      }
+      case 'tasks': {
+        if (!cache?.listItems) return '';
+        return cache.listItems.filter((l: any) => l.task).map((l: any) => l.text ?? '').join(', ');
+      }
+      case 'text': {
+        if (!cache?.sections) return '';
+        return cache.sections.map((s: any) => s.text ?? '').join(' ');
+      }
+      case 'frontmatter': {
+        if (!cache?.frontmatter) return '';
+        return JSON.stringify(cache.frontmatter);
+      }
+      case 'day':      return item.stat?.ctime ? new Date(item.stat.ctime).toISOString().slice(0, 10) : '';
+      case 'isFolder': return 'false';
+      default:         return '';
     }
   }
   if (source === 'yaml') {
-    const metadata = item.metadataCache ?? item.frontmatter ?? {};
+    const metadata = item.frontmatter ?? {};
     const val = metadata[field];
     if (val == null) return '';
     if (Array.isArray(val)) return val.join(', ');

@@ -1,6 +1,6 @@
 import { WidgetStore } from '../store/WidgetStore';
 import { createWidget } from '../widgets/registry';
-import { WidgetCodeBlockData, IWidget, WidgetDefinition } from '../types';
+import { WidgetCodeBlockData, IWidget, WidgetDefinition, ChildWidgetConfig } from '../types';
 import type WidgetPlugin from '../main';
 import { WidgetEditorModal } from '../modals';
 import { setIcon } from 'obsidian';
@@ -88,7 +88,7 @@ export class CodeBlockRenderer {
       if (data.settings) {
         Object.assign(mergedSettings, data.settings);
       }
-      const resolvedChildren = this.resolveChildren(def.children);
+      const resolvedChildren = this.resolveChildren(def.children) as ChildWidgetConfig[];
       await widget.render(container, {
         type: def.type,
         title: data.title || def.name,

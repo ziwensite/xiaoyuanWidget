@@ -3,7 +3,7 @@ import type WidgetPlugin from './main';
 import { WidgetStore } from './store/WidgetStore';
 import { t, t2 } from './i18n';
 import { WidgetEditorModal, ChildEditorModal } from './modals';
-import { isContainerType, isLeafType } from './modals/_shared';
+import { isLeafType } from './modals/_shared';
 import { scanWidgetReferences } from './utils/ReferenceScanner';
 
 export class WidgetSettingTab extends PluginSettingTab {
@@ -139,7 +139,7 @@ export class WidgetSettingTab extends PluginSettingTab {
         const refs = await scanWidgetReferences(this.app, w.id);
         const refCount = refs.length;
         if (!refCount) {
-          new Notice(t('label-no-widgets'));
+          new Notice(t('msg-no-references'));
           return;
         }
         const modal = new Modal(this.app);

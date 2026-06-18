@@ -3,21 +3,12 @@ import { generateId } from '../utils';
 import { isContainerType, isLeafType } from '../modals/_shared';
 
 export class WidgetStore {
-  private data: WidgetStoreData = { widgets: [] };
+  private data: WidgetStoreData;
   private saveFn: () => Promise<void>;
 
-  constructor(loadData: () => Promise<WidgetStoreData>, saveData: (data: WidgetStoreData) => Promise<void>) {
-    this.saveFn = async () => {
-      await saveData(this.data);
-    };
-    this.init(loadData);
-  }
-
-  private async init(loadData: () => Promise<WidgetStoreData>): Promise<void> {
-    const loaded = await loadData();
-    if (loaded && loaded.widgets) {
-      this.data = loaded;
-    }
+  constructor(initialData: WidgetStoreData, saveData: (data: WidgetStoreData) => Promise<void>) {
+    this.data = initialData ?? { widgets: [] };
+    this.saveFn = () => saveData(this.data);
   }
 
   getWidgets(): WidgetDefinition[] {

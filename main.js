@@ -49,18 +49,9 @@ function isLeafType(type) {
 
 // src/store/WidgetStore.ts
 var WidgetStore = class {
-  constructor(loadData, saveData) {
-    this.data = { widgets: [] };
-    this.saveFn = async () => {
-      await saveData(this.data);
-    };
-    this.init(loadData);
-  }
-  async init(loadData) {
-    const loaded = await loadData();
-    if (loaded && loaded.widgets) {
-      this.data = loaded;
-    }
+  constructor(initialData, saveData) {
+    this.data = initialData ?? { widgets: [] };
+    this.saveFn = () => saveData(this.data);
   }
   getWidgets() {
     return this.data.widgets;
@@ -198,23 +189,106 @@ function applyWidgetStyle(container, config) {
 }
 function getFieldValue(item, source, field) {
   if (source === "fileprop") {
+    const app = window.app;
+    const cache = app?.metadataCache?.getFileCache?.(item);
     switch (field) {
-      case "path":
-        return item.path ?? "";
       case "name":
         return item.name ?? "";
+      case "basename":
+        return item.basename ?? item.name?.replace(/\.[^.]+$/, "") ?? "";
+      case "ext":
+        return item.extension ?? item.name?.split(".").pop() ?? "";
+      case "path":
+        return item.path ?? "";
+      case "folder":
+        return item.parent?.path ?? item.path?.replace(/\/[^/]+$/, "") ?? "";
+      case "link":
+        return `[[${item.basename ?? item.name?.replace(/\.[^.]+$/, "")}]]`;
       case "ctime":
         return String(item.stat?.ctime ?? "");
+      case "cday":
+        return item.stat?.ctime ? new Date(item.stat.ctime).toISOString().slice(0, 10) : "";
       case "mtime":
         return String(item.stat?.mtime ?? "");
+      case "mday":
+        return item.stat?.mtime ? new Date(item.stat.mtime).toISOString().slice(0, 10) : "";
       case "size":
         return String(item.stat?.size ?? "");
+      case "starred": {
+        const starred = cache?.frontmatter?.starred;
+        return starred != null ? String(starred) : "";
+      }
+      case "tags": {
+        if (!cache)
+          return "";
+        const tags = [];
+        if (cache.frontmatter?.tags) {
+          const arr = Array.isArray(cache.frontmatter.tags) ? cache.frontmatter.tags : [cache.frontmatter.tags];
+          tags.push(...arr.map(String));
+        }
+        if (cache.tags) {
+          tags.push(...cache.tags.map((t3) => t3.tag.replace(/^#/, "")));
+        }
+        return [...new Set(tags)].join(", ");
+      }
+      case "etags": {
+        if (!cache?.tags)
+          return "";
+        return cache.tags.map((t3) => t3.tag).join(", ");
+      }
+      case "aliases": {
+        if (!cache?.frontmatter?.aliases)
+          return "";
+        const arr = Array.isArray(cache.frontmatter.aliases) ? cache.frontmatter.aliases : [cache.frontmatter.aliases];
+        return arr.map(String).join(", ");
+      }
+      case "inlinks": {
+        if (!app?.metadataCache?.resolvedLinks)
+          return "";
+        const links = app.metadataCache.resolvedLinks;
+        const incoming = [];
+        for (const [src, dst] of Object.entries(links)) {
+          if (dst[item.path])
+            incoming.push(src);
+        }
+        return incoming.join(", ");
+      }
+      case "outlinks": {
+        if (!app?.metadataCache?.resolvedLinks)
+          return "";
+        const links = app.metadataCache.resolvedLinks[item.path];
+        return links ? Object.keys(links).join(", ") : "";
+      }
+      case "lists": {
+        if (!cache?.lists)
+          return "";
+        return cache.lists.map((l) => l.text ?? "").join(", ");
+      }
+      case "tasks": {
+        if (!cache?.listItems)
+          return "";
+        return cache.listItems.filter((l) => l.task).map((l) => l.text ?? "").join(", ");
+      }
+      case "text": {
+        if (!cache?.sections)
+          return "";
+        return cache.sections.map((s) => s.text ?? "").join(" ");
+      }
+      case "frontmatter": {
+        if (!cache?.frontmatter)
+          return "";
+        return JSON.stringify(cache.frontmatter);
+      }
+      case "day":
+        return item.stat?.ctime ? new Date(item.stat.ctime).toISOString().slice(0, 10) : "";
+      case "isFolder":
+        return "false";
       default:
         return "";
     }
   }
   if (source === "yaml") {
-    const metadata = item.metadataCache ?? item.frontmatter ?? {};
+    const metadata = item.frontmatter ?? {};
     const val = metadata[field];
     if (val == null)
       return "";
@@ -328,8 +402,9 @@ var translations = {
   "msg-require-dataview": { en: "Dataview plugin is required. Install and enable it first.", zh: "\u9700\u8981 Dataview \u63D2\u4EF6\uFF0C\u8BF7\u5148\u5B89\u88C5\u5E76\u542F\u7528\u3002" },
   "msg-dataview-query-error": { en: "Query error: {msg}", zh: "\u67E5\u8BE2\u9519\u8BEF\uFF1A{msg}" },
   "msg-no-data": { en: "No data.", zh: "\u6682\u65E0\u6570\u636E\u3002" },
-  "msg-import-success": { en: "Imported {n} widget(s).", zh: "\u5DF2\u5BFC\u5165 {n} \u4E2A\u90E8\u4EF6\u3002" },
+  "msg-import-success": { en: "Imported {n} widget(s).", zh: "\u5DF2\u5BFC\u5165 {n} \u4E2A\u6302\u4EF6\u3002" },
   "msg-copied": { en: "Copied to clipboard!", zh: "\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F\uFF01" },
+  "msg-no-references": { en: "No references found.", zh: "\u672A\u627E\u5230\u5F15\u7528\u3002" },
   "type-stats-card": { en: "Stats Card", zh: "\u7EDF\u8BA1\u5361\u7247" },
   "type-recent-files": { en: "Recent Files", zh: "\u6700\u8FD1\u6587\u4EF6" },
   "type-tag-cloud": { en: "Tag Cloud", zh: "\u6807\u7B7E\u4E91" },
@@ -461,7 +536,7 @@ var StatsCardWidget = class extends BaseWidget {
     const title = config.title || label;
     container.addClass("xyw-stats-card");
     container.createEl("div", { cls: "xyw-card-title", text: title });
-    const valEl = container.createEl("div", { cls: "xyw-card-value", text: String(value) });
+    container.createEl("div", { cls: "xyw-card-value", text: String(value) });
     container.createEl("div", { cls: "xyw-card-label", text: label });
   }
 };
@@ -601,7 +676,7 @@ var DataviewBridge = class {
     const dv = this.getAPI();
     if (!dv)
       throw new Error("Dataview not available");
-    const result = dv.query(query);
+    const result = await dv.query(query);
     if (!result || !result.successful || !result.value)
       return null;
     return {
@@ -713,7 +788,7 @@ var ContainerRowWidget = class extends BaseWidget {
           type: child.type,
           title: child.name,
           settings: child.settings,
-          children: child.children ? void 0 : void 0,
+          children: child.children,
           style: child.style,
           filters: child.filters
         });
@@ -779,7 +854,7 @@ var BaseContainerTabWidget = class extends BaseWidget {
       this.buildTabs(tabBar, tabContent, children, config);
     }
   }
-  buildTabs(tabBar, tabContent, children, config) {
+  async buildTabs(tabBar, tabContent, children, config) {
     this.activeIndex = Math.min(this.activeIndex, children.length - 1);
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
@@ -796,7 +871,7 @@ var BaseContainerTabWidget = class extends BaseWidget {
         await this.renderChildContent(tabContent, child);
       });
       if (i === this.activeIndex) {
-        this.renderChildContent(tabContent, child);
+        await this.renderChildContent(tabContent, child);
       }
     }
   }
@@ -1261,9 +1336,9 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       });
       const fieldContainer = row.createEl("span", { cls: "xyw-filter-field" });
       const fieldSelect = fieldContainer.createEl("select", { cls: "dropdown" });
-      const filePropFields = ["name", "path", "ctime", "mtime", "size"];
+      const filePropFields = ["name", "basename", "ext", "path", "folder", "link", "ctime", "cday", "mtime", "mday", "size", "starred", "tags", "etags", "aliases", "inlinks", "outlinks", "lists", "tasks", "text", "frontmatter", "day", "isFolder"];
       for (const fp of filePropFields) {
-        fieldSelect.createEl("option", { value: fp, text: fp });
+        fieldSelect.createEl("option", { value: fp, text: `file.${fp}` });
       }
       fieldSelect.value = rule.source === "fileprop" ? rule.field : "name";
       fieldSelect.addEventListener("change", () => {
@@ -1810,7 +1885,7 @@ id: ${w.id}
       const refs = await scanWidgetReferences(this.app, w.id);
       const refCount = refs.length;
       if (!refCount) {
-        new import_obsidian5.Notice(t("label-no-widgets"));
+        new import_obsidian5.Notice(t("msg-no-references"));
         return;
       }
       const modal = new import_obsidian5.Modal(this.app);
@@ -1857,13 +1932,13 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
   async onload() {
     const lang = getLang();
     setLang(lang);
+    const loadedData = await this.loadData();
     this.store = new WidgetStore(
-      () => this.loadData(),
+      loadedData ?? { widgets: [] },
       (data) => this.saveData(data)
     );
     this.renderer = new CodeBlockRenderer(this.store, this);
     this.registerWidgetTypes();
-    await this.migrateLegacyData();
     this.registerCodeBlockProcessor();
     this.registerContextMenu();
     this.registerCommands();

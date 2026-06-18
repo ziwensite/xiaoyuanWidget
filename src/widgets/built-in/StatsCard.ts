@@ -46,7 +46,7 @@ export class StatsCardWidget extends BaseWidget {
 
     container.addClass('xyw-stats-card');
     container.createEl('div', { cls: 'xyw-card-title', text: title });
-    const valEl = container.createEl('div', { cls: 'xyw-card-value', text: String(value) });
+    container.createEl('div', { cls: 'xyw-card-value', text: String(value) });
     container.createEl('div', { cls: 'xyw-card-label', text: label });
   }
 }

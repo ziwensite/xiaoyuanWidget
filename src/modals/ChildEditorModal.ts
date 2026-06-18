@@ -398,9 +398,9 @@ export class ChildEditorModal extends Modal {
 
       const fieldContainer = row.createEl('span', { cls: 'xyw-filter-field' });
       const fieldSelect = fieldContainer.createEl('select', { cls: 'dropdown' });
-      const filePropFields = ['name', 'path', 'ctime', 'mtime', 'size'];
+      const filePropFields = ['name', 'basename', 'ext', 'path', 'folder', 'link', 'ctime', 'cday', 'mtime', 'mday', 'size', 'starred', 'tags', 'etags', 'aliases', 'inlinks', 'outlinks', 'lists', 'tasks', 'text', 'frontmatter', 'day', 'isFolder'];
       for (const fp of filePropFields) {
-        fieldSelect.createEl('option', { value: fp, text: fp });
+        fieldSelect.createEl('option', { value: fp, text: `file.${fp}` });
       }
       fieldSelect.value = rule.source === 'fileprop' ? rule.field : 'name';
       fieldSelect.addEventListener('change', () => { rule.field = fieldSelect.value; });

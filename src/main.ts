@@ -17,7 +17,6 @@ import { WidgetEditorModal } from './modals';
 import { WidgetSettingTab } from './settings';
 import { t, getLang, setLang } from './i18n';
 import { WidgetMeta } from './types';
-import { isContainerType } from './modals/_shared';
 
 export default class WidgetPlugin extends Plugin {
   store!: WidgetStore;
@@ -27,15 +26,15 @@ export default class WidgetPlugin extends Plugin {
     const lang = getLang();
     setLang(lang);
 
+    const loadedData = (await this.loadData()) as any;
     this.store = new WidgetStore(
-      () => this.loadData() as any,
+      loadedData ?? { widgets: [] },
       (data) => this.saveData(data)
     );
 
     this.renderer = new CodeBlockRenderer(this.store, this);
 
     this.registerWidgetTypes();
-    await this.migrateLegacyData();
     this.registerCodeBlockProcessor();
     this.registerContextMenu();
     this.registerCommands();

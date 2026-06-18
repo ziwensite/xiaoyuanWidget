@@ -1,4 +1,4 @@
-import { WidgetConfig, WidgetDefinition, AnyWidgetType, IWidget } from '../../types';
+import { WidgetConfig, ChildWidgetConfig, AnyWidgetType, IWidget } from '../../types';
 import { BaseWidget } from '../base';
 import { createWidget } from '../registry';
 import { t } from '../../i18n';
@@ -11,7 +11,7 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
   abstract getType(): string;
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
-    const children = config.children as WidgetDefinition[] ?? [];
+    const children = (config.children ?? []) as ChildWidgetConfig[];
     if (!children.length) {
       container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-children') });
       return;
@@ -34,7 +34,7 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
     }
   }
 
-  private buildTabs(tabBar: HTMLElement, tabContent: HTMLElement, children: WidgetDefinition[], config: WidgetConfig): void {
+  private async buildTabs(tabBar: HTMLElement, tabContent: HTMLElement, children: ChildWidgetConfig[], config: WidgetConfig): Promise<void> {
     this.activeIndex = Math.min(this.activeIndex, children.length - 1);
 
     for (let i = 0; i < children.length; i++) {
@@ -54,12 +54,12 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
       });
 
       if (i === this.activeIndex) {
-        this.renderChildContent(tabContent, child);
+        await this.renderChildContent(tabContent, child);
       }
     }
   }
 
-  private async renderChildContent(container: HTMLElement, child: WidgetDefinition): Promise<void> {
+  private async renderChildContent(container: HTMLElement, child: ChildWidgetConfig): Promise<void> {
     if (this.childWidget) {
       this.childWidget.destroy();
       this.childWidget = null;

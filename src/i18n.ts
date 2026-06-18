@@ -41,9 +41,10 @@ const translations: Record<string, Record<Lang, string>> = {
   'msg-widget-exists': { en: 'A widget with this ID already exists.', zh: '此 ID 已存在。' },
   'msg-require-dataview': { en: 'Dataview plugin is required. Install and enable it first.', zh: '需要 Dataview 插件，请先安装并启用。' },
   'msg-dataview-query-error': { en: 'Query error: {msg}', zh: '查询错误：{msg}' },
-  'msg-no-data': { en: 'No data.', zh: '暂无数据。' },
-  'msg-import-success': { en: 'Imported {n} widget(s).', zh: '已导入 {n} 个部件。' },
+'msg-no-data': { en: 'No data.', zh: '暂无数据。' },
+  'msg-import-success': { en: 'Imported {n} widget(s).', zh: '已导入 {n} 个挂件。' },
   'msg-copied': { en: 'Copied to clipboard!', zh: '已复制到剪贴板！' },
+  'msg-no-references': { en: 'No references found.', zh: '未找到引用。' },
 
   'type-stats-card': { en: 'Stats Card', zh: '统计卡片' },
   'type-recent-files': { en: 'Recent Files', zh: '最近文件' },

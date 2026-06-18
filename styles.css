@@ -178,9 +178,9 @@ button.xyw-edit-overlay:hover {
 }
 
 .xyw-editor-modal h3 {
-  margin-top: 16px;
-  margin-bottom: 8px;
+  margin: 16px 0 8px;
   font-size: 14px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
@@ -426,11 +426,6 @@ button.xyw-edit-overlay:hover {
 .xyw-editor-modal {
   padding-top: 12px;
   padding-bottom: 12px;
-}
-.xyw-editor-modal h3 {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0;
 }
 .xyw-config-card .setting-item,
 .xyw-style-section .setting-item,

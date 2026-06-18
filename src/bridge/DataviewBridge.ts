@@ -40,7 +40,7 @@ export class DataviewBridge {
     const dv = this.getAPI();
     if (!dv) throw new Error('Dataview not available');
 
-    const result = dv.query(query);
+    const result = await dv.query(query);
     if (!result || !result.successful || !result.value) return null;
 
     return {
