@@ -1,9 +1,9 @@
-import { App, Modal, Setting, Notice, ButtonComponent } from 'obsidian';
+import { App, Modal, Setting, Notice, ButtonComponent, Menu } from 'obsidian';
 import type WidgetPlugin from '../main';
 import { WidgetStore } from '../store/WidgetStore';
 import { t } from '../i18n';
-import { getAllWidgetMetas, getWidgetMeta } from '../widgets/registry';
-import { WidgetDefinition, ChildWidgetConfig, AnyWidgetType } from '../types';
+import { getAllWidgetMetas } from '../widgets/registry';
+import { WidgetDefinition, AnyWidgetType } from '../types';
 import { isContainerType } from './_shared';
 import { ChildEditorModal } from './ChildEditorModal';
 
@@ -28,51 +28,105 @@ export class WidgetEditorModal extends Modal {
 
     let name = existing?.name ?? '';
     let type: AnyWidgetType = (existing?.type as AnyWidgetType) ?? 'container-row';
-    let children: ChildWidgetConfig[] = existing?.children ? JSON.parse(JSON.stringify(existing.children)) : [];
+    let children: string[] = existing?.children ? [...existing.children] : [];
 
-    new Setting(contentEl)
-      .setName(t('label-name'))
-      .addText(tc => tc
-        .setValue(name)
-        .onChange(v => { name = v; }));
+    const renderFull = () => {
+      contentEl.empty();
+      contentEl.addClass('xyw-editor-modal');
 
-    const dynamicSectionEl = contentEl.createEl('div');
-    let settings: Record<string, any> = existing?.settings ? { ...existing.settings } : {};
+      new Setting(contentEl)
+        .setName(t('label-name'))
+        .addText(tc => tc
+          .setValue(name)
+          .onChange(v => { name = v; }));
 
-    const renderSection = () => {
-      this.renderDynamicSection(dynamicSectionEl, type, children, settings, (v) => {
-        type = v as AnyWidgetType;
-        const meta = getWidgetMeta(type);
-        settings = {};
-        if (meta) {
-          for (const field of meta.settingSchema) {
-            settings[field.key] = field.defaultValue;
+      const headerRow = contentEl.createEl('div', { cls: 'xyw-section-header' });
+      headerRow.createEl('h3', { text: t('label-widget-list') });
+      new Setting(headerRow)
+        .setName(t('label-layout-type'))
+        .addDropdown(dd => {
+          for (const m of getAllWidgetMetas()) {
+            if (isContainerType(m.type)) {
+              dd.addOption(m.type, t(`type-${m.type}`));
+            }
           }
+          dd.setValue(type);
+          dd.onChange(v => {
+            type = v as AnyWidgetType;
+            renderFull();
+          });
+        });
+
+      const listEl = contentEl.createEl('div', { cls: 'xyw-child-list' });
+      const emptyEl = contentEl.createEl('p', { cls: 'xyw-empty-state', text: t('msg-no-children') });
+
+      const refreshList = () => {
+        listEl.empty();
+        emptyEl.style.display = children.length ? 'none' : '';
+        for (let i = 0; i < children.length; i++) {
+          this.renderChildCard(listEl, children, i, refreshList);
         }
-        if (!isContainerType(type)) children = [];
-        renderSection();
-      });
-    };
-    renderSection();
+      };
+      refreshList();
 
-    const bottomRow = contentEl.createEl('div', { cls: 'xyw-bottom-row' });
-    new ButtonComponent(bottomRow)
-      .setButtonText(t('btn-add-child'))
-      .setCta()
-      .onClick(async () => {
-        const modal = new ChildEditorModal(this.app, null);
-        const result = await modal.openAndGet();
-        if (result) { children.push(result); renderSection(); }
-      });
+      const bottomRow = contentEl.createEl('div', { cls: 'xyw-bottom-row' });
+      const leftGroup = bottomRow.createEl('div', { cls: 'xyw-bottom-left' });
+      new ButtonComponent(leftGroup)
+        .setButtonText('新建')
+        .setCta()
+        .onClick(async () => {
+          const modal = new ChildEditorModal(this.app, this.store, null);
+          const id = await modal.openAndGet();
+          if (id) { children.push(id); renderFull(); }
+        });
+      new ButtonComponent(leftGroup)
+        .setButtonText('引用')
+        .onClick((event) => {
+          const leaves = this.store.getLeafWidgets();
+          if (leaves.length === 0) { new Notice('暂无子部件'); return; }
+          const menu = new Menu();
+          for (const leaf of leaves) {
+            menu.addItem((item) => {
+              item.setTitle(`${leaf.name} (${t(`type-${leaf.type}`)})`);
+              item.onClick(() => {
+                children.push(leaf.id);
+                renderFull();
+              });
+            });
+          }
+          menu.showAtMouseEvent(event);
+        });
+      new ButtonComponent(leftGroup)
+        .setButtonText('复制')
+        .onClick((event) => {
+          const leaves = this.store.getLeafWidgets();
+          if (leaves.length === 0) { new Notice('暂无子部件'); return; }
+          const menu = new Menu();
+          for (const leaf of leaves) {
+            menu.addItem((item) => {
+              item.setTitle(`${leaf.name} (${t(`type-${leaf.type}`)})`);
+              item.onClick(async () => {
+                const def = this.store.getWidget(leaf.id);
+                if (def) {
+                  const copy = JSON.parse(JSON.stringify(def));
+                  delete copy.id; delete copy.createdAt; delete copy.updatedAt;
+                  const saved = await this.store.addWidget(copy);
+                  children.push(saved.id);
+                  renderFull();
+                }
+              });
+            });
+          }
+          menu.showAtMouseEvent(event);
+        });
 
-    const rightGroup = bottomRow.createEl('div', { cls: 'xyw-bottom-right' });
-    new ButtonComponent(rightGroup)
-      .setButtonText(t('btn-save'))
-      .setCta()
-      .onClick(async () => {
+      const rightGroup = bottomRow.createEl('div', { cls: 'xyw-bottom-right' });
+      new ButtonComponent(rightGroup)
+        .setButtonText(t('btn-save'))
+        .setCta()
+        .onClick(async () => {
           if (!name.trim()) { new Notice('Name is required'); return; }
-          const data: any = { name: name.trim(), type, settings };
-          if (isContainerType(type)) data.children = children;
+          const data: any = { name: name.trim(), type, children };
           if (isNew) {
             const saved = await this.store.addWidget(data);
             new Notice(t('btn-save'));
@@ -84,89 +138,16 @@ export class WidgetEditorModal extends Modal {
           }
           this.close();
         });
-    new ButtonComponent(rightGroup)
-      .setButtonText(t('btn-cancel'))
-      .onClick(() => this.close());
-  }
-
-  private renderDynamicSection(container: HTMLElement, type: AnyWidgetType, children: ChildWidgetConfig[], settings: Record<string, any>, onTypeChange?: (v: string) => void): void {
-    container.empty();
-
-    if (!isContainerType(type)) {
-      const meta = getWidgetMeta(type);
-      if (meta && meta.settingSchema.length > 0) {
-        container.createEl('h3', { text: t('label-config') });
-        for (const field of meta.settingSchema) {
-          const setting = new Setting(container).setName(t(field.labelKey));
-          const currentVal = settings[field.key] ?? field.defaultValue;
-          switch (field.type) {
-            case 'text':
-              setting.addText(tc => tc
-                .setPlaceholder(field.placeholder ?? '')
-                .setValue(String(currentVal))
-                .onChange(v => { settings[field.key] = v; }));
-              break;
-            case 'number':
-              setting.addText(t => {
-                t.setPlaceholder(field.placeholder ?? '0');
-                t.setValue(String(currentVal));
-                t.inputEl.type = 'number';
-                t.onChange(v => { settings[field.key] = Number(v) || 0; });
-              });
-              break;
-            case 'textarea':
-              setting.addTextArea(ta => ta
-                .setPlaceholder(field.placeholder ?? '')
-                .setValue(String(currentVal))
-                .onChange(v => { settings[field.key] = v; }));
-              break;
-            case 'select':
-              if (field.options) {
-                const opts = field.options;
-                setting.addDropdown(dd => {
-                  for (const opt of opts) dd.addOption(opt.value, opt.label);
-                  dd.setValue(String(currentVal));
-                  dd.onChange(v => { settings[field.key] = v; });
-                });
-              }
-              break;
-          }
-        }
-      }
-      return;
-    }
-
-    const headerRow = container.createEl('div', { cls: 'xyw-section-header' });
-    headerRow.createEl('h3', { text: t('label-widget-list') });
-    new Setting(headerRow)
-      .setName(t('label-layout-type'))
-      .addDropdown(dd => {
-        for (const m of getAllWidgetMetas()) {
-          if (isContainerType(m.type)) {
-            dd.addOption(m.type, t(`type-${m.type}`));
-          }
-        }
-        dd.setValue(type);
-        dd.onChange(v => {
-          onTypeChange?.(v);
-        });
-      });
-
-    const listEl = container.createEl('div', { cls: 'xyw-child-list' });
-    const emptyEl = container.createEl('p', { cls: 'xyw-empty-state', text: t('msg-no-children') });
-
-    const refreshList = () => {
-      listEl.empty();
-      emptyEl.style.display = children.length ? 'none' : '';
-      for (let i = 0; i < children.length; i++) {
-        this.renderChildCard(listEl, children, i, refreshList);
-      }
+      new ButtonComponent(rightGroup)
+        .setButtonText(t('btn-cancel'))
+        .onClick(() => this.close());
     };
-    refreshList();
+    renderFull();
   }
 
-  private renderChildCard(listEl: HTMLElement, children: ChildWidgetConfig[], index: number, onRefresh: () => void): void {
-    const child = children[index];
+  private renderChildCard(listEl: HTMLElement, children: string[], index: number, onRefresh: () => void): void {
+    const childId = children[index];
+    const childDef = this.store.getWidget(childId);
     const card = listEl.createEl('div', { cls: 'xyw-child-card-simple' });
     card.draggable = true;
 
@@ -197,27 +178,37 @@ export class WidgetEditorModal extends Modal {
       }
     });
 
+    const label = childDef
+      ? `${index + 1}. ${childDef.name} (${t(`type-${childDef.type}`)})`
+      : `${index + 1}. [已删除] ${childId}`;
     card.createEl('span', {
       cls: 'xyw-child-label-simple',
-      text: `${index + 1}. ${child.name} (${t(`type-${child.type}`)})`,
+      text: label,
     });
     const acts = card.createEl('div', { cls: 'xyw-child-actions-simple' });
 
     new ButtonComponent(acts)
       .setIcon('copy')
-      .setTooltip('Duplicate')
+      .setTooltip(t('btn-duplicate'))
       .onClick(() => {
-        const copy = JSON.parse(JSON.stringify(children[index]));
-        children.splice(index + 1, 0, copy);
-        onRefresh();
+        if (childDef) {
+          const copy = JSON.parse(JSON.stringify(childDef));
+          delete copy.id; delete copy.createdAt; delete copy.updatedAt;
+          this.store.addWidget(copy).then(saved => {
+            children.splice(index + 1, 0, saved.id);
+            onRefresh();
+          });
+        }
       });
     new ButtonComponent(acts)
       .setIcon('pencil')
       .setTooltip(t('btn-edit'))
       .onClick(async () => {
-        const modal = new ChildEditorModal(this.app, children[index]);
-        const result = await modal.openAndGet();
-        if (result) { children[index] = result; onRefresh(); }
+        if (childDef) {
+          const modal = new ChildEditorModal(this.app, this.store, childId);
+          const id = await modal.openAndGet();
+          if (id) onRefresh();
+        }
       });
     new ButtonComponent(acts)
       .setIcon('trash-2')

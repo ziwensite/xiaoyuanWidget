@@ -1,6 +1,6 @@
 import { Plugin, Notice, Editor, Menu } from 'obsidian';
 import { WidgetStore } from './store/WidgetStore';
-import { registerWidgetType, getAllWidgetTypes } from './widgets/registry';
+import { registerWidgetType } from './widgets/registry';
 import { StatsCardWidget } from './widgets/built-in/StatsCard';
 import { RecentFilesWidget } from './widgets/built-in/RecentFiles';
 import { TagCloudWidget } from './widgets/built-in/TagCloud';
@@ -14,10 +14,10 @@ import { RandomNoteWidget } from './widgets/built-in/RandomNote';
 import { CodeBlockRenderer } from './renderer/CodeBlockRenderer';
 import { WidgetPickerModal } from './ui/WidgetPickerModal';
 import { WidgetEditorModal } from './modals';
-import { isContainerType } from './modals/_shared';
 import { WidgetSettingTab } from './settings';
 import { t, getLang, setLang } from './i18n';
 import { WidgetMeta } from './types';
+import { isContainerType } from './modals/_shared';
 
 export default class WidgetPlugin extends Plugin {
   store!: WidgetStore;
@@ -35,6 +35,7 @@ export default class WidgetPlugin extends Plugin {
     this.renderer = new CodeBlockRenderer(this.store, this);
 
     this.registerWidgetTypes();
+    await this.migrateLegacyData();
     this.registerCodeBlockProcessor();
     this.registerContextMenu();
     this.registerCommands();
@@ -185,6 +186,32 @@ export default class WidgetPlugin extends Plugin {
     }
   }
 
+  private async migrateLegacyData(): Promise<void> {
+    const widgets = this.store.getWidgets();
+    let changed = false;
+    for (const w of widgets) {
+      if (w.children && w.children.length > 0 && typeof w.children[0] === 'object') {
+        const oldChildren = w.children as any as { name: string; type: string; settings: Record<string, unknown>; style?: any; filters?: any[] }[];
+        const newIds: string[] = [];
+        for (const child of oldChildren) {
+          const saved = await this.store.addWidget({
+            name: child.name,
+            type: child.type as any,
+            settings: child.settings || {},
+            children: [],
+            style: child.style,
+            filters: child.filters,
+          });
+          newIds.push(saved.id);
+        }
+        w.children = newIds;
+        await this.store.updateWidget(w.id, { children: newIds });
+        changed = true;
+      }
+    }
+    if (changed) new Notice('已迁移旧数据，子部件已提升为独立部件');
+  }
+
   private registerCodeBlockProcessor(): void {
     this.registerMarkdownCodeBlockProcessor('xiaoyuanwidget', async (source, el, ctx) => {
       await this.renderer.render(source, el);
@@ -210,73 +237,48 @@ export default class WidgetPlugin extends Plugin {
           });
         });
 
-const widgets = this.store.getWidgets();
-        if (widgets.length === 0) {
-          rootSub.addItem((item: any) => {
-            item.setTitle(t('label-no-widgets'));
-            item.setDisabled(true);
+        const containers = this.store.getContainerWidgets();
+        const leaves = this.store.getLeafWidgets();
+
+        const addWidgetSub = (parentSub: any, title: string, widgets: any[], insert: boolean) => {
+          let sub: any = null;
+          parentSub.addItem((item: any) => {
+            item.setTitle(title);
+            sub = item.setSubmenu();
           });
-          return;
-        }
-
-        let insertSub: any = null;
-        rootSub.addItem((item: any) => {
-          item.setTitle(t('context-insert-wgt'));
-          insertSub = item.setSubmenu();
-        });
-        if (!insertSub) return;
-
-        const containerWidgets = widgets.filter(w => isContainerType(w.type));
-        const leafWidgets = widgets.filter(w => !isContainerType(w.type));
-
-        if (leafWidgets.length > 0) {
-          let leafSub: any = null;
-          insertSub.addItem((item: any) => {
-            item.setTitle('Leaf Widgets');
-            leafSub = item.setSubmenu();
-          });
-          if (leafSub) {
-            for (const w of leafWidgets) {
-              leafSub.addItem((item: any) => {
+          if (sub) {
+            for (const w of widgets) {
+              sub.addItem((item: any) => {
                 item.setTitle(w.name);
                 item.onClick(() => {
-                  this.insertCodeBlock(editor, w.id);
+                  if (insert) {
+                    this.insertCodeBlock(editor, w.id);
+                  } else {
+                    const copy = JSON.parse(JSON.stringify(w));
+                    delete copy.id; delete copy.createdAt; delete copy.updatedAt;
+                    this.store.addWidget({
+                      name: w.name + ' (副本)',
+                      type: w.type,
+                      settings: copy.settings || {},
+                      children: copy.children ? [...copy.children] : [],
+                      style: copy.style,
+                      filters: copy.filters,
+                    }).then(saved => {
+                      new WidgetEditorModal(this.app, this, this.store, saved.id, (widget) => {
+                        if (widget) this.insertCodeBlock(editor, widget.id);
+                      }).open();
+                    });
+                  }
                 });
               });
             }
           }
-        }
+        };
 
-        if (containerWidgets.length > 0) {
-          const grouped = new Map<string, typeof containerWidgets>();
-          for (const w of containerWidgets) {
-            const list = grouped.get(w.type) || [];
-            list.push(w);
-            grouped.set(w.type, list);
-          }
-
-          const typeOrder = getAllWidgetTypes();
-          for (const type of typeOrder) {
-            const list = grouped.get(type);
-            if (!list || list.length === 0) continue;
-
-            let typeSub: any = null;
-            insertSub.addItem((item: any) => {
-              item.setTitle(t(`type-${type}`));
-              typeSub = item.setSubmenu();
-            });
-            if (!typeSub) continue;
-
-            for (const w of list) {
-              typeSub.addItem((item: any) => {
-                item.setTitle(w.name);
-                item.onClick(() => {
-                  this.insertCodeBlock(editor, w.id);
-                });
-              });
-            }
-          }
-        }
+        if (containers.length > 0) addWidgetSub(rootSub, '引用容器', containers, true);
+        if (leaves.length > 0) addWidgetSub(rootSub, '引用叶子', leaves, true);
+        if (containers.length > 0) addWidgetSub(rootSub, '复制容器', containers, false);
+        if (leaves.length > 0) addWidgetSub(rootSub, '复制叶子', leaves, false);
       })
     );
   }

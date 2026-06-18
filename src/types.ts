@@ -42,21 +42,12 @@ export interface FilterRule {
   logic: 'and' | 'or';
 }
 
-export interface ChildWidgetConfig {
-  name: string;
-  type: AnyWidgetType;
-  settings: Record<string, unknown>;
-  children?: ChildWidgetConfig[];
-  style?: WidgetStyle;
-  filters?: FilterRule[];
-}
-
 export interface WidgetDefinition {
   id: string;
   name: string;
   type: AnyWidgetType;
   settings: Record<string, unknown>;
-  children?: ChildWidgetConfig[];
+  children?: string[];
   createdAt: number;
   updatedAt: number;
   style?: WidgetStyle;
@@ -73,7 +64,7 @@ export interface WidgetConfig {
   type: AnyWidgetType;
   title: string;
   settings: Record<string, unknown>;
-  children?: ChildWidgetConfig[];
+  children?: WidgetDefinition[];
   style?: WidgetStyle;
   filters?: FilterRule[];
 }

@@ -1,22 +1,19 @@
 import { App, Modal, Setting, Notice } from 'obsidian';
 import { t } from '../i18n';
+import { WidgetStore } from '../store/WidgetStore';
 import { getAllWidgetMetas, getWidgetMeta } from '../widgets/registry';
-import { ChildWidgetConfig, AnyWidgetType, WidgetStyle, FilterRule } from '../types';
-import { isContainerType, isLeafType } from './_shared';
+import { AnyWidgetType, WidgetStyle, FilterRule } from '../types';
+import { isLeafType } from './_shared';
 
 export class ChildEditorModal extends Modal {
-  private result: ChildWidgetConfig | null = null;
-  private resolve: ((value: ChildWidgetConfig | null) => void) | null = null;
-  private settingsContainerEl!: HTMLElement;
-  private styleContainerEl!: HTMLElement;
-  private contentStyleContainerEl!: HTMLElement;
-  private filterContainerEl!: HTMLElement;
+  private result: string | null = null;
+  private resolve: ((value: string | null) => void) | null = null;
 
-  constructor(app: App, private existing: ChildWidgetConfig | null) {
+  constructor(app: App, private store: WidgetStore, private widgetId: string | null) {
     super(app);
   }
 
-  async openAndGet(): Promise<ChildWidgetConfig | null> {
+  async openAndGet(): Promise<string | null> {
     return new Promise((resolve) => {
       this.resolve = resolve;
       this.open();
@@ -28,74 +25,73 @@ export class ChildEditorModal extends Modal {
     contentEl.empty();
     contentEl.addClass('xyw-editor-modal');
 
-    let name = this.existing?.name ?? '';
-    let type: AnyWidgetType = (this.existing?.type as AnyWidgetType) ?? 'stats-card';
-    let settings = this.existing?.settings ? { ...this.existing.settings } : {};
-    let children: ChildWidgetConfig[] = this.existing?.children ? JSON.parse(JSON.stringify(this.existing.children)) : [];
-    const extra: {
-      style: WidgetStyle | undefined;
-      filters: FilterRule[];
-    } = {
-      style: this.existing?.style ? JSON.parse(JSON.stringify(this.existing.style)) : undefined,
-      filters: this.existing?.filters ? JSON.parse(JSON.stringify(this.existing.filters)) : [],
-    };
+    const existing = this.widgetId ? this.store.getWidget(this.widgetId) : null;
+    const isNew = !existing;
 
-    this.settingsContainerEl = contentEl.createEl('div');
+    let name = existing?.name ?? '';
+    let type: AnyWidgetType = (existing?.type as AnyWidgetType) ?? 'stats-card';
+    let settings: Record<string, any> = existing?.settings ? { ...existing.settings } : {};
+    let style: WidgetStyle | undefined = existing?.style ? JSON.parse(JSON.stringify(existing.style)) : undefined;
+    let filters: FilterRule[] = existing?.filters ? JSON.parse(JSON.stringify(existing.filters)) : [];
 
-    const renderSettingsWithState = () => {
-      this.renderSettings(type, settings, name, (v) => { name = v; }, (v) => {
-        type = v as AnyWidgetType;
-        settings = {};
-        const meta = getWidgetMeta(type as any);
-        if (meta) {
-          for (const field of meta.settingSchema) {
-            settings[field.key] = field.defaultValue;
-          }
+    const initSettings = (t: AnyWidgetType) => {
+      settings = {};
+      const m = getWidgetMeta(t);
+      if (m) {
+        for (const f of m.settingSchema) {
+          settings[f.key] = f.defaultValue;
         }
-        if (!isContainerType(type)) children = [];
-        renderSettingsWithState();
-      }, extra);
+      }
     };
-    renderSettingsWithState();
 
-    this.styleContainerEl = contentEl.createEl('div');
-    this.renderTitleStyle(extra);
+    const settingsSection = contentEl.createEl('div');
+    const styleSection = contentEl.createEl('div');
+    const filterSection = contentEl.createEl('div');
 
-    this.contentStyleContainerEl = contentEl.createEl('div');
-    this.renderContentStyle(extra);
-
-    this.filterContainerEl = contentEl.createEl('div');
-    this.renderFilterSection(extra);
+    const renderAll = () => {
+      this.renderSettings(settingsSection, name, type, settings);
+      this.renderTitleStyle(styleSection, style);
+      this.renderContentStyle(styleSection, style);
+      this.renderFilterSection(filterSection, filters);
+    };
+    renderAll();
 
     new Setting(contentEl)
       .addButton(btn => btn
         .setButtonText(t('btn-save'))
         .setCta()
-        .onClick(() => {
+        .onClick(async () => {
           if (!name.trim()) { new Notice('Name is required'); return; }
-          this.result = { name: name.trim(), type, settings };
-          if (isContainerType(type)) this.result.children = children;
-          if (extra.style && Object.keys(extra.style).length > 0) this.result.style = extra.style;
-          if (extra.filters.length > 0) this.result.filters = extra.filters;
+          const data: any = { name: name.trim(), type, settings, children: [] };
+          if (style && Object.keys(style).length > 0) data.style = style;
+          if (filters.length > 0) data.filters = filters;
+          if (isNew) {
+            const saved = await this.store.addWidget(data);
+            this.result = saved.id;
+          } else {
+            await this.store.updateWidget(this.widgetId!, data);
+            this.result = this.widgetId;
+          }
           this.close();
         }))
       .addButton(btn => btn
         .setButtonText(t('btn-cancel'))
-        .onClick(() => this.close()));
+        .onClick(() => {
+          this.result = null;
+          this.close();
+        }));
   }
 
-  private renderSettings(type: AnyWidgetType, settings: Record<string, any>, name: string, setName: (v: string) => void, onTypeChange: (v: string) => void, extra: { style: WidgetStyle | undefined; filters: FilterRule[] }): void {
-    this.settingsContainerEl.empty();
-    this.settingsContainerEl.createEl('h3', { text: t('label-config') });
-    const card = this.settingsContainerEl.createEl('div', { cls: 'xyw-config-card' });
-
+  private renderSettings(container: HTMLElement, name: string, type: AnyWidgetType, settings: Record<string, any>): void {
+    container.empty();
+    container.createEl('h3', { text: t('label-config') });
+    const card = container.createEl('div', { cls: 'xyw-style-section' });
     new Setting(card)
       .setName(t('label-name'))
       .addText(tc => tc
         .setValue(name)
-        .onChange(v => { setName(v); }));
-
-    new Setting(card)
+        .onChange(v => { name = v; }));
+    new Setting(container)
       .setName(t('label-type'))
       .addDropdown(dd => {
         for (const m of getAllWidgetMetas()) {
@@ -104,11 +100,20 @@ export class ChildEditorModal extends Modal {
           }
         }
         dd.setValue(type);
-        dd.onChange(v => { onTypeChange(v); });
+        dd.onChange(v => {
+          type = v as AnyWidgetType;
+          const meta = getWidgetMeta(type);
+          settings = {};
+          if (meta) {
+            for (const f of meta.settingSchema) {
+              settings[f.key] = f.defaultValue;
+            }
+          }
+          this.onOpen();
+        });
       });
-
-    const meta = getWidgetMeta(type as any);
-    if (meta) {
+    const meta = getWidgetMeta(type);
+    if (meta && meta.settingSchema.length > 0) {
       for (const field of meta.settingSchema) {
         const setting = new Setting(card).setName(t(field.labelKey));
         const currentVal = settings[field.key] ?? field.defaultValue;
@@ -146,15 +151,12 @@ export class ChildEditorModal extends Modal {
         }
       }
     }
-
-    this.renderSizeSetting(card, t('style-width'), extra, 'width');
-    this.renderSizeSetting(card, t('style-height'), extra, 'height');
   }
 
-  private renderTitleStyle(extra: { style: WidgetStyle | undefined; filters: FilterRule[] }): void {
-    this.styleContainerEl.empty();
-    this.styleContainerEl.createEl('h3', { text: t('style-title') });
-    const card = this.styleContainerEl.createEl('div', { cls: 'xyw-style-section' });
+  private renderTitleStyle(container: HTMLElement, style: WidgetStyle | undefined): void {
+    container.empty();
+    container.createEl('h3', { text: t('style-title') });
+    const card = container.createEl('div', { cls: 'xyw-style-section' });
 
     new Setting(card)
       .setName(t('style-title-align'))
@@ -162,11 +164,11 @@ export class ChildEditorModal extends Modal {
         dd.addOption('left', t('style-align-left'));
         dd.addOption('center', t('style-align-center'));
         dd.addOption('right', t('style-align-right'));
-        dd.setValue(extra.style?.title?.align ?? 'left');
+        dd.setValue(style?.title?.align ?? 'left');
         dd.onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.title) extra.style.title = {};
-          extra.style.title.align = v as 'left' | 'center' | 'right';
+          if (!style) style = {};
+          if (!style.title) style.title = {};
+          style.title.align = v as 'left' | 'center' | 'right';
         });
       });
 
@@ -174,11 +176,11 @@ export class ChildEditorModal extends Modal {
       .setName(t('style-title-color'))
       .addText(tc => {
         tc.inputEl.type = 'color';
-        tc.setValue(extra.style?.title?.color ?? '')
+        tc.setValue(style?.title?.color ?? '')
         .onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.title) extra.style.title = {};
-          extra.style.title.color = v;
+          if (!style) style = {};
+          if (!style.title) style.title = {};
+          style.title.color = v;
         });
       });
 
@@ -186,11 +188,11 @@ export class ChildEditorModal extends Modal {
       .setName(t('style-title-bg'))
       .addText(tc => {
         tc.inputEl.type = 'color';
-        tc.setValue(extra.style?.title?.bgColor ?? '')
+        tc.setValue(style?.title?.bgColor ?? '')
         .onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.title) extra.style.title = {};
-          extra.style.title.bgColor = v;
+          if (!style) style = {};
+          if (!style.title) style.title = {};
+          style.title.bgColor = v;
         });
       });
 
@@ -199,11 +201,11 @@ export class ChildEditorModal extends Modal {
       .addText(tc => {
         tc.inputEl.type = 'number';
         tc.inputEl.placeholder = '14';
-        tc.setValue(extra.style?.title?.fontSize?.replace(/px$/, '') ?? '');
+        tc.setValue(style?.title?.fontSize?.replace(/px$/, '') ?? '');
         tc.onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.title) extra.style.title = {};
-          extra.style.title.fontSize = v ? `${v}px` : '';
+          if (!style) style = {};
+          if (!style.title) style.title = {};
+          style.title.fontSize = v ? `${v}px` : '';
         });
       })
       .addDropdown(dd => {
@@ -218,19 +220,18 @@ export class ChildEditorModal extends Modal {
         dd.addOption('normal', 'normal');
         dd.addOption('bold', 'bold');
         for (let i = 100; i <= 900; i += 100) dd.addOption(String(i), String(i));
-        dd.setValue(extra.style?.title?.fontWeight ?? '');
+        dd.setValue(style?.title?.fontWeight ?? '');
         dd.onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.title) extra.style.title = {};
-          extra.style.title.fontWeight = v || undefined;
+          if (!style) style = {};
+          if (!style.title) style.title = {};
+          style.title.fontWeight = v || undefined;
         });
       });
   }
 
-  private renderContentStyle(extra: { style: WidgetStyle | undefined; filters: FilterRule[] }): void {
-    this.contentStyleContainerEl.empty();
-    this.contentStyleContainerEl.createEl('h3', { text: t('style-content') });
-    const card = this.contentStyleContainerEl.createEl('div', { cls: 'xyw-style-section' });
+  private renderContentStyle(container: HTMLElement, style: WidgetStyle | undefined): void {
+    container.createEl('h3', { text: t('style-content') });
+    const card = container.createEl('div', { cls: 'xyw-style-section' });
 
     new Setting(card)
       .setName(t('style-content-align'))
@@ -238,11 +239,11 @@ export class ChildEditorModal extends Modal {
         dd.addOption('left', t('style-align-left'));
         dd.addOption('center', t('style-align-center'));
         dd.addOption('right', t('style-align-right'));
-        dd.setValue(extra.style?.content?.align ?? 'left');
+        dd.setValue(style?.content?.align ?? 'left');
         dd.onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.content) extra.style.content = {};
-          extra.style.content.align = v as 'left' | 'center' | 'right';
+          if (!style) style = {};
+          if (!style.content) style.content = {};
+          style.content.align = v as 'left' | 'center' | 'right';
         });
       });
 
@@ -250,11 +251,11 @@ export class ChildEditorModal extends Modal {
       .setName(t('style-content-color'))
       .addText(tc => {
         tc.inputEl.type = 'color';
-        tc.setValue(extra.style?.content?.color ?? '')
+        tc.setValue(style?.content?.color ?? '')
         .onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.content) extra.style.content = {};
-          extra.style.content.color = v;
+          if (!style) style = {};
+          if (!style.content) style.content = {};
+          style.content.color = v;
         });
       });
 
@@ -263,11 +264,11 @@ export class ChildEditorModal extends Modal {
       .addText(tc => {
         tc.inputEl.type = 'number';
         tc.inputEl.placeholder = '13';
-        tc.setValue(extra.style?.content?.fontSize?.replace(/px$/, '') ?? '');
+        tc.setValue(style?.content?.fontSize?.replace(/px$/, '') ?? '');
         tc.onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.content) extra.style.content = {};
-          extra.style.content.fontSize = v ? `${v}px` : '';
+          if (!style) style = {};
+          if (!style.content) style.content = {};
+          style.content.fontSize = v ? `${v}px` : '';
         });
       })
       .addDropdown(dd => {
@@ -282,11 +283,11 @@ export class ChildEditorModal extends Modal {
         dd.addOption('normal', 'normal');
         dd.addOption('bold', 'bold');
         for (let i = 100; i <= 900; i += 100) dd.addOption(String(i), String(i));
-        dd.setValue(extra.style?.content?.fontWeight ?? '');
+        dd.setValue(style?.content?.fontWeight ?? '');
         dd.onChange(v => {
-          if (!extra.style) extra.style = {};
-          if (!extra.style.content) extra.style.content = {};
-          extra.style.content.fontWeight = v || undefined;
+          if (!style) style = {};
+          if (!style.content) style.content = {};
+          style.content.fontWeight = v || undefined;
         });
       });
 
@@ -294,12 +295,15 @@ export class ChildEditorModal extends Modal {
       .setName(t('style-border-color'))
       .addText(tc => {
         tc.inputEl.type = 'color';
-        tc.setValue(extra.style?.borderColor ?? '')
+        tc.setValue(style?.borderColor ?? '')
         .onChange(v => {
-          if (!extra.style) extra.style = {};
-          extra.style.borderColor = v;
+          if (!style) style = {};
+          style.borderColor = v;
         });
       });
+
+    this.renderSizeSetting(card, t('style-width'), style, 'width');
+    this.renderSizeSetting(card, t('style-height'), style, 'height');
   }
 
   private parseSizeValue(val: string | undefined): { num: string; unit: string } {
@@ -310,8 +314,8 @@ export class ChildEditorModal extends Modal {
     return { num: match[1], unit: match[2] || 'px' };
   }
 
-  private renderSizeSetting(card: HTMLElement, label: string, extra: { style: WidgetStyle | undefined }, prop: 'width' | 'height'): void {
-    const parsed = this.parseSizeValue(extra.style?.[prop]);
+  private renderSizeSetting(card: HTMLElement, label: string, style: WidgetStyle | undefined, prop: 'width' | 'height'): void {
+    const parsed = this.parseSizeValue(style?.[prop]);
     let textComp: any;
     new Setting(card)
       .setName(label)
@@ -321,10 +325,10 @@ export class ChildEditorModal extends Modal {
         tc.inputEl.placeholder = 'auto';
         tc.setValue(parsed.num);
         tc.onChange(v => {
-          if (!extra.style) extra.style = {};
-          const cur = extra.style[prop] || '';
+          if (!style) style = {};
+          const cur = style[prop] || '';
           const unit = cur.replace(/^[\d.]+/, '') || 'px';
-          extra.style[prop] = v ? `${v}${unit}` : '';
+          style[prop] = v ? `${v}${unit}` : '';
         });
         if (parsed.unit === 'auto') tc.inputEl.disabled = true;
       })
@@ -333,31 +337,31 @@ export class ChildEditorModal extends Modal {
         for (const u of units) dd.addOption(u, u);
         dd.setValue(parsed.unit);
         dd.onChange(v => {
-          if (!extra.style) extra.style = {};
+          if (!style) style = {};
           if (v === 'auto') {
-            extra.style[prop] = 'auto';
+            style[prop] = 'auto';
             textComp.inputEl.disabled = true;
           } else {
             textComp.inputEl.disabled = false;
-            extra.style[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : '';
+            style[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : '';
           }
         });
       });
   }
 
-  private renderFilterSection(extra: { style: WidgetStyle | undefined; filters: FilterRule[] }): void {
-    this.filterContainerEl.empty();
-    this.filterContainerEl.createEl('h3', { text: t('filter-title') });
-    const card = this.filterContainerEl.createEl('div', { cls: 'xyw-filter-section' });
+  private renderFilterSection(container: HTMLElement, filters: FilterRule[]): void {
+    container.empty();
+    container.createEl('h3', { text: t('filter-title') });
+    const card = container.createEl('div', { cls: 'xyw-filter-section' });
 
     const addBtn = card.createEl('button', { cls: 'xyw-filter-add-btn' });
     addBtn.textContent = '+ ' + t('filter-add');
     addBtn.addEventListener('click', () => {
-      extra.filters.push({ source: 'fileprop', field: 'name', operator: 'contains', value: '', logic: 'and' });
-      this.renderFilterRows(card, extra.filters);
+      filters.push({ source: 'fileprop', field: 'name', operator: 'contains', value: '', logic: 'and' });
+      this.renderFilterRows(card, filters);
     });
 
-    this.renderFilterRows(card, extra.filters);
+    this.renderFilterRows(card, filters);
   }
 
   private renderFilterRows(container: HTMLElement, filters: FilterRule[]): void {
@@ -405,7 +409,6 @@ export class ChildEditorModal extends Modal {
       fieldInput.placeholder = 'field name';
       fieldInput.value = rule.source === 'yaml' ? rule.field : '';
       fieldInput.addEventListener('change', () => { rule.field = fieldInput.value; });
-      fieldInput.addEventListener('blur', () => { rule.field = fieldInput.value; });
 
       const updateFieldVisibility = () => {
         if (rule.source === 'fileprop') {
@@ -431,7 +434,7 @@ export class ChildEditorModal extends Modal {
       valueInput.addEventListener('change', () => { rule.value = valueInput.value; });
 
       const delBtn = row.createEl('button', { cls: 'xyw-filter-del' });
-      delBtn.textContent = '×';
+      delBtn.textContent = '\u00d7';
       delBtn.addEventListener('click', () => {
         filters.splice(i, 1);
         container.querySelectorAll('.xyw-filter-row').forEach(el => el.remove());

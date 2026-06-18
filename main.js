@@ -37,6 +37,16 @@ function generateId() {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${rand}`;
 }
 
+// src/modals/_shared.ts
+var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
+var LEAF_TYPES = /* @__PURE__ */ new Set(["stats-card", "recent-files", "tag-cloud", "dv-table", "dv-list", "backlinks", "random-note"]);
+function isContainerType(type) {
+  return CONTAINER_TYPES.has(type);
+}
+function isLeafType(type) {
+  return LEAF_TYPES.has(type);
+}
+
 // src/store/WidgetStore.ts
 var WidgetStore = class {
   constructor(loadData, saveData) {
@@ -57,6 +67,21 @@ var WidgetStore = class {
   }
   getWidget(id) {
     return this.data.widgets.find((w) => w.id === id);
+  }
+  getLeafWidgets() {
+    return this.data.widgets.filter((w) => isLeafType(w.type));
+  }
+  getContainerWidgets() {
+    return this.data.widgets.filter((w) => isContainerType(w.type));
+  }
+  getReferencingContainers(id) {
+    const result = [];
+    for (const w of this.data.widgets) {
+      if (w.children?.includes(id)) {
+        result.push(w.name);
+      }
+    }
+    return result;
   }
   async addWidget(def) {
     const widget = {
@@ -128,9 +153,6 @@ function getWidgetMeta(type) {
 }
 function getAllWidgetMetas() {
   return Array.from(metaMap.values());
-}
-function getAllWidgetTypes() {
-  return Array.from(metaMap.keys());
 }
 
 // src/utils/StyleUtils.ts
@@ -272,12 +294,12 @@ var BaseWidget = class {
 // src/i18n.ts
 var currentLang = "zh";
 var translations = {
-  "plugin-name": { en: "xiaoyuanWidget", zh: "\u5C0F\u5143\u6302\u4EF6" },
-  "plugin-desc": { en: "Modular widgets \u2014 stats, Dataview queries, tag cloud and more", zh: "\u6A21\u5757\u5316\u6302\u4EF6 \u2014 \u7EDF\u8BA1\u3001Dataview \u67E5\u8BE2\u3001\u6807\u7B7E\u4E91\u7B49" },
+  "plugin-name": { en: "xiaoyuanWidget", zh: "\u5C0F\u5143\u90E8\u4EF6" },
+  "plugin-desc": { en: "Modular widgets \u2014 stats, Dataview queries, tag cloud and more", zh: "\u6A21\u5757\u5316\u90E8\u4EF6 \u2014 \u7EDF\u8BA1\u3001Dataview \u67E5\u8BE2\u3001\u6807\u7B7E\u4E91\u7B49" },
   "settings-general": { en: "General Settings", zh: "\u901A\u7528\u8BBE\u7F6E" },
-  "settings-widget-mgr": { en: "Widget Manager", zh: "\u6302\u4EF6\u7BA1\u7406" },
+  "settings-widget-mgr": { en: "Widget Manager", zh: "\u90E8\u4EF6\u7BA1\u7406" },
   "settings-dataview": { en: "Dataview Integration", zh: "Dataview \u96C6\u6210" },
-  "btn-new-widget": { en: "New Widget", zh: "\u65B0\u5EFA\u6302\u4EF6" },
+  "btn-new-widget": { en: "New Widget", zh: "\u65B0\u5EFA\u90E8\u4EF6" },
   "btn-edit": { en: "Edit", zh: "\u7F16\u8F91" },
   "btn-delete": { en: "Delete", zh: "\u5220\u9664" },
   "btn-save": { en: "Save", zh: "\u4FDD\u5B58" },
@@ -293,20 +315,20 @@ var translations = {
   "label-usage-count": { en: "Usage Count", zh: "\u4F7F\u7528\u6B21\u6570" },
   "label-created": { en: "Created", zh: "\u521B\u5EFA\u65F6\u95F4" },
   "label-updated": { en: "Updated", zh: "\u66F4\u65B0\u65F6\u95F4" },
-  "label-no-widgets": { en: 'No widgets yet. Click "New Widget" to create one.', zh: '\u6682\u65E0\u6302\u4EF6\uFF0C\u70B9\u51FB"\u65B0\u5EFA\u6302\u4EF6"\u521B\u5EFA\u7B2C\u4E00\u4E2A\u3002' },
-  "label-widget-id": { en: "Widget ID", zh: "\u6302\u4EF6 ID" },
-  "label-select-widget": { en: "Select a widget", zh: "\u9009\u62E9\u4E00\u4E2A\u6302\u4EF6" },
+  "label-no-widgets": { en: 'No widgets yet. Click "New Widget" to create one.', zh: '\u6682\u65E0\u90E8\u4EF6\uFF0C\u70B9\u51FB"\u65B0\u5EFA\u90E8\u4EF6"\u521B\u5EFA\u7B2C\u4E00\u4E2A\u3002' },
+  "label-widget-id": { en: "Widget ID", zh: "\u90E8\u4EF6 ID" },
+  "label-select-widget": { en: "Select a widget", zh: "\u9009\u62E9\u4E00\u4E2A\u90E8\u4EF6" },
   "label-find-references": { en: "Find References", zh: "\u67E5\u627E\u5F15\u7528" },
-  "title-edit-widget": { en: "Edit Widget", zh: "\u7F16\u8F91\u6302\u4EF6" },
-  "title-new-widget": { en: "New Widget", zh: "\u65B0\u5EFA\u6302\u4EF6" },
-  "title-pick-widget": { en: "Insert xiaoyuanWidget", zh: "\u63D2\u5165\u5C0F\u5143\u6302\u4EF6" },
+  "title-edit-widget": { en: "Edit Widget", zh: "\u7F16\u8F91\u90E8\u4EF6" },
+  "title-new-widget": { en: "New Widget", zh: "\u65B0\u5EFA\u90E8\u4EF6" },
+  "title-pick-widget": { en: "Insert xiaoyuanWidget", zh: "\u63D2\u5165\u5C0F\u5143\u90E8\u4EF6" },
   "title-widget-preview": { en: "Preview", zh: "\u9884\u89C8" },
-  "msg-confirm-delete": { en: 'Are you sure you want to delete "{name}"?', zh: '\u786E\u5B9A\u5220\u9664\u6302\u4EF6"{name}"\u5417\uFF1F' },
+  "msg-confirm-delete": { en: 'Are you sure you want to delete "{name}"?', zh: '\u786E\u5B9A\u5220\u9664\u90E8\u4EF6"{name}"\u5417\uFF1F' },
   "msg-widget-exists": { en: "A widget with this ID already exists.", zh: "\u6B64 ID \u5DF2\u5B58\u5728\u3002" },
   "msg-require-dataview": { en: "Dataview plugin is required. Install and enable it first.", zh: "\u9700\u8981 Dataview \u63D2\u4EF6\uFF0C\u8BF7\u5148\u5B89\u88C5\u5E76\u542F\u7528\u3002" },
   "msg-dataview-query-error": { en: "Query error: {msg}", zh: "\u67E5\u8BE2\u9519\u8BEF\uFF1A{msg}" },
   "msg-no-data": { en: "No data.", zh: "\u6682\u65E0\u6570\u636E\u3002" },
-  "msg-import-success": { en: "Imported {n} widget(s).", zh: "\u5DF2\u5BFC\u5165 {n} \u4E2A\u6302\u4EF6\u3002" },
+  "msg-import-success": { en: "Imported {n} widget(s).", zh: "\u5DF2\u5BFC\u5165 {n} \u4E2A\u90E8\u4EF6\u3002" },
   "msg-copied": { en: "Copied to clipboard!", zh: "\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F\uFF01" },
   "type-stats-card": { en: "Stats Card", zh: "\u7EDF\u8BA1\u5361\u7247" },
   "type-recent-files": { en: "Recent Files", zh: "\u6700\u8FD1\u6587\u4EF6" },
@@ -327,14 +349,14 @@ var translations = {
   "config-exclude-folders": { en: "Exclude Folders", zh: "\u6392\u9664\u76EE\u5F55" },
   "config-min-count": { en: "Min Count", zh: "\u6700\u5C11\u51FA\u73B0\u6B21\u6570" },
   "config-query": { en: "DQL Query", zh: "DQL \u67E5\u8BE2\u8BED\u53E5" },
-  "label-children": { en: "Children", zh: "\u5B50\u6302\u4EF6" },
-  "label-layout-type": { en: "Layout", zh: "\u5B50\u6302\u4EF6\u6392\u5217\u65B9\u5F0F" },
-  "label-widget-list": { en: "Widgets", zh: "\u6302\u4EF6\u5217\u8868" },
-  "label-child-list": { en: "Widgets", zh: "\u5B50\u6302\u4EF6\u5217\u8868" },
+  "label-children": { en: "Children", zh: "\u5B50\u90E8\u4EF6" },
+  "label-layout-type": { en: "Layout", zh: "\u5B50\u90E8\u4EF6\u6392\u5217\u65B9\u5F0F" },
+  "label-widget-list": { en: "Widgets", zh: "\u90E8\u4EF6\u5217\u8868" },
+  "label-child-list": { en: "Widgets", zh: "\u5B50\u90E8\u4EF6\u5217\u8868" },
   "btn-rename": { en: "Rename", zh: "\u91CD\u547D\u540D" },
-  "btn-add-child": { en: "Add Child", zh: "\u6DFB\u52A0\u5B50\u6302\u4EF6" },
-  "btn-switch-type-warn": { en: "Switching to a non-container type will clear all children. Continue?", zh: "\u5207\u6362\u4E3A\u975E\u5BB9\u5668\u7C7B\u578B\u5C06\u6E05\u9664\u6240\u6709\u5B50\u6302\u4EF6\uFF0C\u662F\u5426\u7EE7\u7EED\uFF1F" },
-  "msg-no-children": { en: 'No children. Click "Add Child" to add one.', zh: '\u6682\u65E0\u5B50\u6302\u4EF6\uFF0C\u70B9\u51FB"\u6DFB\u52A0\u5B50\u6302\u4EF6"\u6DFB\u52A0\u3002' },
+  "btn-add-child": { en: "Add Child", zh: "\u6DFB\u52A0\u5B50\u90E8\u4EF6" },
+  "btn-switch-type-warn": { en: "Switching to a non-container type will clear all children. Continue?", zh: "\u5207\u6362\u4E3A\u975E\u5BB9\u5668\u7C7B\u578B\u5C06\u6E05\u9664\u6240\u6709\u5B50\u90E8\u4EF6\uFF0C\u662F\u5426\u7EE7\u7EED\uFF1F" },
+  "msg-no-children": { en: 'No children. Click "Add Child" to add one.', zh: '\u6682\u65E0\u5B50\u90E8\u4EF6\uFF0C\u70B9\u51FB"\u6DFB\u52A0\u5B50\u90E8\u4EF6"\u6DFB\u52A0\u3002' },
   "style-title": { en: "Title Style", zh: "\u6807\u9898\u6837\u5F0F" },
   "style-title-align": { en: "Title Align", zh: "\u6807\u9898\u5BF9\u9F50" },
   "style-title-color": { en: "Title Color", zh: "\u6807\u9898\u6587\u5B57\u989C\u8272" },
@@ -370,10 +392,16 @@ var translations = {
   "filter-op-lt": { en: "less than", zh: "\u5C0F\u4E8E" },
   "filter-value": { en: "Value", zh: "\u503C" },
   "filter-logic": { en: "Logic", zh: "\u903B\u8F91" },
-  "context-insert-widget": { en: "xiaoyuanWidget", zh: "\u5C0F\u5143\u6302\u4EF6" },
+  "context-insert-widget": { en: "xiaoyuanWidget", zh: "\u5C0F\u5143\u90E8\u4EF6" },
   "context-new-widget": { en: "New Widget", zh: "\u65B0\u5EFA" },
-  "context-insert-wgt": { en: "Insert Widget", zh: "\u63D2\u5165" },
-  "codeblock-hint": { en: "Right-click to insert a widget, or manually write:\n```xiaoyuanwidget\nid: your-widget-id\n```", zh: "\u53F3\u952E\u53EF\u63D2\u5165\u6302\u4EF6\uFF0C\u6216\u624B\u52A8\u7F16\u5199\uFF1A\n```xiaoyuanwidget\nid: your-widget-id\n```" }
+  "context-reference-wgt": { en: "Reference", zh: "\u5F15\u7528" },
+  "label-container": { en: "Container", zh: "\u5BB9\u5668" },
+  "label-leaf": { en: "Leaf", zh: "\u53F6\u5B50" },
+  "label-reference-count": { en: "Referenced by {n} container(s)", zh: "\u88AB {n} \u4E2A\u5BB9\u5668\u5F15\u7528" },
+  "btn-duplicate": { en: "Duplicate", zh: "\u590D\u5236" },
+  "btn-new-leaf": { en: "New Leaf Widget", zh: "\u65B0\u5EFA\u53F6\u5B50\u90E8\u4EF6" },
+  "msg-delete-referenced": { en: '"{name}" is referenced by {n} container(s). Delete anyway?', zh: '"{name}" \u88AB {n} \u4E2A\u5BB9\u5668\u5F15\u7528\uFF0C\u786E\u8BA4\u5220\u9664\uFF1F' },
+  "codeblock-hint": { en: "Right-click to insert a widget, or manually write:\n```xiaoyuanwidget\nid: your-widget-id\n```", zh: "\u53F3\u952E\u53EF\u63D2\u5165\u90E8\u4EF6\uFF0C\u6216\u624B\u52A8\u7F16\u5199\uFF1A\n```xiaoyuanwidget\nid: your-widget-id\n```" }
 };
 function getLang() {
   const locale = window.moment?.locale?.() ?? "en";
@@ -685,7 +713,7 @@ var ContainerRowWidget = class extends BaseWidget {
           type: child.type,
           title: child.name,
           settings: child.settings,
-          children: child.children,
+          children: child.children ? void 0 : void 0,
           style: child.style,
           filters: child.filters
         });
@@ -714,7 +742,6 @@ var ContainerColWidget = class extends BaseWidget {
           type: child.type,
           title: child.name,
           settings: child.settings,
-          children: child.children,
           style: child.style,
           filters: child.filters
         });
@@ -784,7 +811,6 @@ var BaseContainerTabWidget = class extends BaseWidget {
         type: child.type,
         title: child.name,
         settings: child.settings,
-        children: child.children,
         style: child.style,
         filters: child.filters
       });
@@ -875,22 +901,11 @@ var RandomNoteWidget = class extends BaseWidget {
 
 // src/modals/ChildEditorModal.ts
 var import_obsidian = require("obsidian");
-
-// src/modals/_shared.ts
-var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
-var LEAF_TYPES = /* @__PURE__ */ new Set(["stats-card", "recent-files", "tag-cloud", "dv-table", "dv-list", "backlinks", "random-note"]);
-function isContainerType(type) {
-  return CONTAINER_TYPES.has(type);
-}
-function isLeafType(type) {
-  return LEAF_TYPES.has(type);
-}
-
-// src/modals/ChildEditorModal.ts
 var ChildEditorModal = class extends import_obsidian.Modal {
-  constructor(app, existing) {
+  constructor(app, store, widgetId) {
     super(app);
-    this.existing = existing;
+    this.store = store;
+    this.widgetId = widgetId;
     this.result = null;
     this.resolve = null;
   }
@@ -904,62 +919,63 @@ var ChildEditorModal = class extends import_obsidian.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("xyw-editor-modal");
-    let name = this.existing?.name ?? "";
-    let type = this.existing?.type ?? "stats-card";
-    let settings = this.existing?.settings ? { ...this.existing.settings } : {};
-    let children = this.existing?.children ? JSON.parse(JSON.stringify(this.existing.children)) : [];
-    const extra = {
-      style: this.existing?.style ? JSON.parse(JSON.stringify(this.existing.style)) : void 0,
-      filters: this.existing?.filters ? JSON.parse(JSON.stringify(this.existing.filters)) : []
-    };
-    this.settingsContainerEl = contentEl.createEl("div");
-    const renderSettingsWithState = () => {
-      this.renderSettings(type, settings, name, (v) => {
-        name = v;
-      }, (v) => {
-        type = v;
-        settings = {};
-        const meta = getWidgetMeta(type);
-        if (meta) {
-          for (const field of meta.settingSchema) {
-            settings[field.key] = field.defaultValue;
-          }
+    const existing = this.widgetId ? this.store.getWidget(this.widgetId) : null;
+    const isNew = !existing;
+    let name = existing?.name ?? "";
+    let type = existing?.type ?? "stats-card";
+    let settings = existing?.settings ? { ...existing.settings } : {};
+    let style = existing?.style ? JSON.parse(JSON.stringify(existing.style)) : void 0;
+    let filters = existing?.filters ? JSON.parse(JSON.stringify(existing.filters)) : [];
+    const initSettings = (t3) => {
+      settings = {};
+      const m = getWidgetMeta(t3);
+      if (m) {
+        for (const f of m.settingSchema) {
+          settings[f.key] = f.defaultValue;
         }
-        if (!isContainerType(type))
-          children = [];
-        renderSettingsWithState();
-      }, extra);
+      }
     };
-    renderSettingsWithState();
-    this.styleContainerEl = contentEl.createEl("div");
-    this.renderTitleStyle(extra);
-    this.contentStyleContainerEl = contentEl.createEl("div");
-    this.renderContentStyle(extra);
-    this.filterContainerEl = contentEl.createEl("div");
-    this.renderFilterSection(extra);
-    new import_obsidian.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-save")).setCta().onClick(() => {
+    const settingsSection = contentEl.createEl("div");
+    const styleSection = contentEl.createEl("div");
+    const filterSection = contentEl.createEl("div");
+    const renderAll = () => {
+      this.renderSettings(settingsSection, name, type, settings);
+      this.renderTitleStyle(styleSection, style);
+      this.renderContentStyle(styleSection, style);
+      this.renderFilterSection(filterSection, filters);
+    };
+    renderAll();
+    new import_obsidian.Setting(contentEl).addButton((btn) => btn.setButtonText(t("btn-save")).setCta().onClick(async () => {
       if (!name.trim()) {
         new import_obsidian.Notice("Name is required");
         return;
       }
-      this.result = { name: name.trim(), type, settings };
-      if (isContainerType(type))
-        this.result.children = children;
-      if (extra.style && Object.keys(extra.style).length > 0)
-        this.result.style = extra.style;
-      if (extra.filters.length > 0)
-        this.result.filters = extra.filters;
+      const data = { name: name.trim(), type, settings, children: [] };
+      if (style && Object.keys(style).length > 0)
+        data.style = style;
+      if (filters.length > 0)
+        data.filters = filters;
+      if (isNew) {
+        const saved = await this.store.addWidget(data);
+        this.result = saved.id;
+      } else {
+        await this.store.updateWidget(this.widgetId, data);
+        this.result = this.widgetId;
+      }
       this.close();
-    })).addButton((btn) => btn.setButtonText(t("btn-cancel")).onClick(() => this.close()));
-  }
-  renderSettings(type, settings, name, setName, onTypeChange, extra) {
-    this.settingsContainerEl.empty();
-    this.settingsContainerEl.createEl("h3", { text: t("label-config") });
-    const card = this.settingsContainerEl.createEl("div", { cls: "xyw-config-card" });
-    new import_obsidian.Setting(card).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
-      setName(v);
+    })).addButton((btn) => btn.setButtonText(t("btn-cancel")).onClick(() => {
+      this.result = null;
+      this.close();
     }));
-    new import_obsidian.Setting(card).setName(t("label-type")).addDropdown((dd) => {
+  }
+  renderSettings(container, name, type, settings) {
+    container.empty();
+    container.createEl("h3", { text: t("label-config") });
+    const card = container.createEl("div", { cls: "xyw-style-section" });
+    new import_obsidian.Setting(card).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
+      name = v;
+    }));
+    new import_obsidian.Setting(container).setName(t("label-type")).addDropdown((dd) => {
       for (const m of getAllWidgetMetas()) {
         if (isLeafType(m.type)) {
           dd.addOption(m.type, t(`type-${m.type}`));
@@ -967,11 +983,19 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       }
       dd.setValue(type);
       dd.onChange((v) => {
-        onTypeChange(v);
+        type = v;
+        const meta2 = getWidgetMeta(type);
+        settings = {};
+        if (meta2) {
+          for (const f of meta2.settingSchema) {
+            settings[f.key] = f.defaultValue;
+          }
+        }
+        this.onOpen();
       });
     });
     const meta = getWidgetMeta(type);
-    if (meta) {
+    if (meta && meta.settingSchema.length > 0) {
       for (const field of meta.settingSchema) {
         const setting = new import_obsidian.Setting(card).setName(t(field.labelKey));
         const currentVal = settings[field.key] ?? field.defaultValue;
@@ -1012,56 +1036,54 @@ var ChildEditorModal = class extends import_obsidian.Modal {
         }
       }
     }
-    this.renderSizeSetting(card, t("style-width"), extra, "width");
-    this.renderSizeSetting(card, t("style-height"), extra, "height");
   }
-  renderTitleStyle(extra) {
-    this.styleContainerEl.empty();
-    this.styleContainerEl.createEl("h3", { text: t("style-title") });
-    const card = this.styleContainerEl.createEl("div", { cls: "xyw-style-section" });
+  renderTitleStyle(container, style) {
+    container.empty();
+    container.createEl("h3", { text: t("style-title") });
+    const card = container.createEl("div", { cls: "xyw-style-section" });
     new import_obsidian.Setting(card).setName(t("style-title-align")).addDropdown((dd) => {
       dd.addOption("left", t("style-align-left"));
       dd.addOption("center", t("style-align-center"));
       dd.addOption("right", t("style-align-right"));
-      dd.setValue(extra.style?.title?.align ?? "left");
+      dd.setValue(style?.title?.align ?? "left");
       dd.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.title)
-          extra.style.title = {};
-        extra.style.title.align = v;
+        if (!style)
+          style = {};
+        if (!style.title)
+          style.title = {};
+        style.title.align = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-title-color")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(extra.style?.title?.color ?? "").onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.title)
-          extra.style.title = {};
-        extra.style.title.color = v;
+      tc.setValue(style?.title?.color ?? "").onChange((v) => {
+        if (!style)
+          style = {};
+        if (!style.title)
+          style.title = {};
+        style.title.color = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-title-bg")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(extra.style?.title?.bgColor ?? "").onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.title)
-          extra.style.title = {};
-        extra.style.title.bgColor = v;
+      tc.setValue(style?.title?.bgColor ?? "").onChange((v) => {
+        if (!style)
+          style = {};
+        if (!style.title)
+          style.title = {};
+        style.title.bgColor = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-title-size")).addText((tc) => {
       tc.inputEl.type = "number";
       tc.inputEl.placeholder = "14";
-      tc.setValue(extra.style?.title?.fontSize?.replace(/px$/, "") ?? "");
+      tc.setValue(style?.title?.fontSize?.replace(/px$/, "") ?? "");
       tc.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.title)
-          extra.style.title = {};
-        extra.style.title.fontSize = v ? `${v}px` : "";
+        if (!style)
+          style = {};
+        if (!style.title)
+          style.title = {};
+        style.title.fontSize = v ? `${v}px` : "";
       });
     }).addDropdown((dd) => {
       dd.addOption("px", "px");
@@ -1073,53 +1095,52 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       dd.addOption("bold", "bold");
       for (let i = 100; i <= 900; i += 100)
         dd.addOption(String(i), String(i));
-      dd.setValue(extra.style?.title?.fontWeight ?? "");
+      dd.setValue(style?.title?.fontWeight ?? "");
       dd.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.title)
-          extra.style.title = {};
-        extra.style.title.fontWeight = v || void 0;
+        if (!style)
+          style = {};
+        if (!style.title)
+          style.title = {};
+        style.title.fontWeight = v || void 0;
       });
     });
   }
-  renderContentStyle(extra) {
-    this.contentStyleContainerEl.empty();
-    this.contentStyleContainerEl.createEl("h3", { text: t("style-content") });
-    const card = this.contentStyleContainerEl.createEl("div", { cls: "xyw-style-section" });
+  renderContentStyle(container, style) {
+    container.createEl("h3", { text: t("style-content") });
+    const card = container.createEl("div", { cls: "xyw-style-section" });
     new import_obsidian.Setting(card).setName(t("style-content-align")).addDropdown((dd) => {
       dd.addOption("left", t("style-align-left"));
       dd.addOption("center", t("style-align-center"));
       dd.addOption("right", t("style-align-right"));
-      dd.setValue(extra.style?.content?.align ?? "left");
+      dd.setValue(style?.content?.align ?? "left");
       dd.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.content)
-          extra.style.content = {};
-        extra.style.content.align = v;
+        if (!style)
+          style = {};
+        if (!style.content)
+          style.content = {};
+        style.content.align = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-content-color")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(extra.style?.content?.color ?? "").onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.content)
-          extra.style.content = {};
-        extra.style.content.color = v;
+      tc.setValue(style?.content?.color ?? "").onChange((v) => {
+        if (!style)
+          style = {};
+        if (!style.content)
+          style.content = {};
+        style.content.color = v;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-content-size")).addText((tc) => {
       tc.inputEl.type = "number";
       tc.inputEl.placeholder = "13";
-      tc.setValue(extra.style?.content?.fontSize?.replace(/px$/, "") ?? "");
+      tc.setValue(style?.content?.fontSize?.replace(/px$/, "") ?? "");
       tc.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.content)
-          extra.style.content = {};
-        extra.style.content.fontSize = v ? `${v}px` : "";
+        if (!style)
+          style = {};
+        if (!style.content)
+          style.content = {};
+        style.content.fontSize = v ? `${v}px` : "";
       });
     }).addDropdown((dd) => {
       dd.addOption("px", "px");
@@ -1131,23 +1152,25 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       dd.addOption("bold", "bold");
       for (let i = 100; i <= 900; i += 100)
         dd.addOption(String(i), String(i));
-      dd.setValue(extra.style?.content?.fontWeight ?? "");
+      dd.setValue(style?.content?.fontWeight ?? "");
       dd.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        if (!extra.style.content)
-          extra.style.content = {};
-        extra.style.content.fontWeight = v || void 0;
+        if (!style)
+          style = {};
+        if (!style.content)
+          style.content = {};
+        style.content.fontWeight = v || void 0;
       });
     });
     new import_obsidian.Setting(card).setName(t("style-border-color")).addText((tc) => {
       tc.inputEl.type = "color";
-      tc.setValue(extra.style?.borderColor ?? "").onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        extra.style.borderColor = v;
+      tc.setValue(style?.borderColor ?? "").onChange((v) => {
+        if (!style)
+          style = {};
+        style.borderColor = v;
       });
     });
+    this.renderSizeSetting(card, t("style-width"), style, "width");
+    this.renderSizeSetting(card, t("style-height"), style, "height");
   }
   parseSizeValue(val) {
     if (!val)
@@ -1159,8 +1182,8 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       return { num: "", unit: "auto" };
     return { num: match[1], unit: match[2] || "px" };
   }
-  renderSizeSetting(card, label, extra, prop) {
-    const parsed = this.parseSizeValue(extra.style?.[prop]);
+  renderSizeSetting(card, label, style, prop) {
+    const parsed = this.parseSizeValue(style?.[prop]);
     let textComp;
     new import_obsidian.Setting(card).setName(label).addText((tc) => {
       textComp = tc;
@@ -1168,11 +1191,11 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       tc.inputEl.placeholder = "auto";
       tc.setValue(parsed.num);
       tc.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
-        const cur = extra.style[prop] || "";
+        if (!style)
+          style = {};
+        const cur = style[prop] || "";
         const unit = cur.replace(/^[\d.]+/, "") || "px";
-        extra.style[prop] = v ? `${v}${unit}` : "";
+        style[prop] = v ? `${v}${unit}` : "";
       });
       if (parsed.unit === "auto")
         tc.inputEl.disabled = true;
@@ -1182,29 +1205,29 @@ var ChildEditorModal = class extends import_obsidian.Modal {
         dd.addOption(u, u);
       dd.setValue(parsed.unit);
       dd.onChange((v) => {
-        if (!extra.style)
-          extra.style = {};
+        if (!style)
+          style = {};
         if (v === "auto") {
-          extra.style[prop] = "auto";
+          style[prop] = "auto";
           textComp.inputEl.disabled = true;
         } else {
           textComp.inputEl.disabled = false;
-          extra.style[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : "";
+          style[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : "";
         }
       });
     });
   }
-  renderFilterSection(extra) {
-    this.filterContainerEl.empty();
-    this.filterContainerEl.createEl("h3", { text: t("filter-title") });
-    const card = this.filterContainerEl.createEl("div", { cls: "xyw-filter-section" });
+  renderFilterSection(container, filters) {
+    container.empty();
+    container.createEl("h3", { text: t("filter-title") });
+    const card = container.createEl("div", { cls: "xyw-filter-section" });
     const addBtn = card.createEl("button", { cls: "xyw-filter-add-btn" });
     addBtn.textContent = "+ " + t("filter-add");
     addBtn.addEventListener("click", () => {
-      extra.filters.push({ source: "fileprop", field: "name", operator: "contains", value: "", logic: "and" });
-      this.renderFilterRows(card, extra.filters);
+      filters.push({ source: "fileprop", field: "name", operator: "contains", value: "", logic: "and" });
+      this.renderFilterRows(card, filters);
     });
-    this.renderFilterRows(card, extra.filters);
+    this.renderFilterRows(card, filters);
   }
   renderFilterRows(container, filters) {
     container.findAll(".xyw-filter-row").forEach((el) => el.remove());
@@ -1250,9 +1273,6 @@ var ChildEditorModal = class extends import_obsidian.Modal {
       fieldInput.placeholder = "field name";
       fieldInput.value = rule.source === "yaml" ? rule.field : "";
       fieldInput.addEventListener("change", () => {
-        rule.field = fieldInput.value;
-      });
-      fieldInput.addEventListener("blur", () => {
         rule.field = fieldInput.value;
       });
       const updateFieldVisibility = () => {
@@ -1313,133 +1333,116 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
     const isNew = !existing;
     let name = existing?.name ?? "";
     let type = existing?.type ?? "container-row";
-    let children = existing?.children ? JSON.parse(JSON.stringify(existing.children)) : [];
-    new import_obsidian2.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
-      name = v;
-    }));
-    const dynamicSectionEl = contentEl.createEl("div");
-    let settings = existing?.settings ? { ...existing.settings } : {};
-    const renderSection = () => {
-      this.renderDynamicSection(dynamicSectionEl, type, children, settings, (v) => {
-        type = v;
-        const meta = getWidgetMeta(type);
-        settings = {};
-        if (meta) {
-          for (const field of meta.settingSchema) {
-            settings[field.key] = field.defaultValue;
+    let children = existing?.children ? [...existing.children] : [];
+    const renderFull = () => {
+      contentEl.empty();
+      contentEl.addClass("xyw-editor-modal");
+      new import_obsidian2.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
+        name = v;
+      }));
+      const headerRow = contentEl.createEl("div", { cls: "xyw-section-header" });
+      headerRow.createEl("h3", { text: t("label-widget-list") });
+      new import_obsidian2.Setting(headerRow).setName(t("label-layout-type")).addDropdown((dd) => {
+        for (const m of getAllWidgetMetas()) {
+          if (isContainerType(m.type)) {
+            dd.addOption(m.type, t(`type-${m.type}`));
           }
         }
-        if (!isContainerType(type))
-          children = [];
-        renderSection();
+        dd.setValue(type);
+        dd.onChange((v) => {
+          type = v;
+          renderFull();
+        });
       });
-    };
-    renderSection();
-    const bottomRow = contentEl.createEl("div", { cls: "xyw-bottom-row" });
-    new import_obsidian2.ButtonComponent(bottomRow).setButtonText(t("btn-add-child")).setCta().onClick(async () => {
-      const modal = new ChildEditorModal(this.app, null);
-      const result = await modal.openAndGet();
-      if (result) {
-        children.push(result);
-        renderSection();
-      }
-    });
-    const rightGroup = bottomRow.createEl("div", { cls: "xyw-bottom-right" });
-    new import_obsidian2.ButtonComponent(rightGroup).setButtonText(t("btn-save")).setCta().onClick(async () => {
-      if (!name.trim()) {
-        new import_obsidian2.Notice("Name is required");
-        return;
-      }
-      const data = { name: name.trim(), type, settings };
-      if (isContainerType(type))
-        data.children = children;
-      if (isNew) {
-        const saved = await this.store.addWidget(data);
-        new import_obsidian2.Notice(t("btn-save"));
-        this.onSaved(saved);
-      } else {
-        await this.store.updateWidget(this.editId, data);
-        new import_obsidian2.Notice(t("btn-save"));
-        this.onSaved();
-      }
-      this.close();
-    });
-    new import_obsidian2.ButtonComponent(rightGroup).setButtonText(t("btn-cancel")).onClick(() => this.close());
-  }
-  renderDynamicSection(container, type, children, settings, onTypeChange) {
-    container.empty();
-    if (!isContainerType(type)) {
-      const meta = getWidgetMeta(type);
-      if (meta && meta.settingSchema.length > 0) {
-        container.createEl("h3", { text: t("label-config") });
-        for (const field of meta.settingSchema) {
-          const setting = new import_obsidian2.Setting(container).setName(t(field.labelKey));
-          const currentVal = settings[field.key] ?? field.defaultValue;
-          switch (field.type) {
-            case "text":
-              setting.addText((tc) => tc.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-                settings[field.key] = v;
-              }));
-              break;
-            case "number":
-              setting.addText((t3) => {
-                t3.setPlaceholder(field.placeholder ?? "0");
-                t3.setValue(String(currentVal));
-                t3.inputEl.type = "number";
-                t3.onChange((v) => {
-                  settings[field.key] = Number(v) || 0;
-                });
-              });
-              break;
-            case "textarea":
-              setting.addTextArea((ta) => ta.setPlaceholder(field.placeholder ?? "").setValue(String(currentVal)).onChange((v) => {
-                settings[field.key] = v;
-              }));
-              break;
-            case "select":
-              if (field.options) {
-                const opts = field.options;
-                setting.addDropdown((dd) => {
-                  for (const opt of opts)
-                    dd.addOption(opt.value, opt.label);
-                  dd.setValue(String(currentVal));
-                  dd.onChange((v) => {
-                    settings[field.key] = v;
-                  });
-                });
+      const listEl = contentEl.createEl("div", { cls: "xyw-child-list" });
+      const emptyEl = contentEl.createEl("p", { cls: "xyw-empty-state", text: t("msg-no-children") });
+      const refreshList = () => {
+        listEl.empty();
+        emptyEl.style.display = children.length ? "none" : "";
+        for (let i = 0; i < children.length; i++) {
+          this.renderChildCard(listEl, children, i, refreshList);
+        }
+      };
+      refreshList();
+      const bottomRow = contentEl.createEl("div", { cls: "xyw-bottom-row" });
+      const leftGroup = bottomRow.createEl("div", { cls: "xyw-bottom-left" });
+      new import_obsidian2.ButtonComponent(leftGroup).setButtonText("\u65B0\u5EFA").setCta().onClick(async () => {
+        const modal = new ChildEditorModal(this.app, this.store, null);
+        const id = await modal.openAndGet();
+        if (id) {
+          children.push(id);
+          renderFull();
+        }
+      });
+      new import_obsidian2.ButtonComponent(leftGroup).setButtonText("\u5F15\u7528").onClick((event) => {
+        const leaves = this.store.getLeafWidgets();
+        if (leaves.length === 0) {
+          new import_obsidian2.Notice("\u6682\u65E0\u5B50\u90E8\u4EF6");
+          return;
+        }
+        const menu = new import_obsidian2.Menu();
+        for (const leaf of leaves) {
+          menu.addItem((item) => {
+            item.setTitle(`${leaf.name} (${t(`type-${leaf.type}`)})`);
+            item.onClick(() => {
+              children.push(leaf.id);
+              renderFull();
+            });
+          });
+        }
+        menu.showAtMouseEvent(event);
+      });
+      new import_obsidian2.ButtonComponent(leftGroup).setButtonText("\u590D\u5236").onClick((event) => {
+        const leaves = this.store.getLeafWidgets();
+        if (leaves.length === 0) {
+          new import_obsidian2.Notice("\u6682\u65E0\u5B50\u90E8\u4EF6");
+          return;
+        }
+        const menu = new import_obsidian2.Menu();
+        for (const leaf of leaves) {
+          menu.addItem((item) => {
+            item.setTitle(`${leaf.name} (${t(`type-${leaf.type}`)})`);
+            item.onClick(async () => {
+              const def = this.store.getWidget(leaf.id);
+              if (def) {
+                const copy = JSON.parse(JSON.stringify(def));
+                delete copy.id;
+                delete copy.createdAt;
+                delete copy.updatedAt;
+                const saved = await this.store.addWidget(copy);
+                children.push(saved.id);
+                renderFull();
               }
-              break;
-          }
+            });
+          });
         }
-      }
-      return;
-    }
-    const headerRow = container.createEl("div", { cls: "xyw-section-header" });
-    headerRow.createEl("h3", { text: t("label-widget-list") });
-    new import_obsidian2.Setting(headerRow).setName(t("label-layout-type")).addDropdown((dd) => {
-      for (const m of getAllWidgetMetas()) {
-        if (isContainerType(m.type)) {
-          dd.addOption(m.type, t(`type-${m.type}`));
-        }
-      }
-      dd.setValue(type);
-      dd.onChange((v) => {
-        onTypeChange?.(v);
+        menu.showAtMouseEvent(event);
       });
-    });
-    const listEl = container.createEl("div", { cls: "xyw-child-list" });
-    const emptyEl = container.createEl("p", { cls: "xyw-empty-state", text: t("msg-no-children") });
-    const refreshList = () => {
-      listEl.empty();
-      emptyEl.style.display = children.length ? "none" : "";
-      for (let i = 0; i < children.length; i++) {
-        this.renderChildCard(listEl, children, i, refreshList);
-      }
+      const rightGroup = bottomRow.createEl("div", { cls: "xyw-bottom-right" });
+      new import_obsidian2.ButtonComponent(rightGroup).setButtonText(t("btn-save")).setCta().onClick(async () => {
+        if (!name.trim()) {
+          new import_obsidian2.Notice("Name is required");
+          return;
+        }
+        const data = { name: name.trim(), type, children };
+        if (isNew) {
+          const saved = await this.store.addWidget(data);
+          new import_obsidian2.Notice(t("btn-save"));
+          this.onSaved(saved);
+        } else {
+          await this.store.updateWidget(this.editId, data);
+          new import_obsidian2.Notice(t("btn-save"));
+          this.onSaved();
+        }
+        this.close();
+      });
+      new import_obsidian2.ButtonComponent(rightGroup).setButtonText(t("btn-cancel")).onClick(() => this.close());
     };
-    refreshList();
+    renderFull();
   }
   renderChildCard(listEl, children, index, onRefresh) {
-    const child = children[index];
+    const childId = children[index];
+    const childDef = this.store.getWidget(childId);
     const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
     card.draggable = true;
     card.addEventListener("dragstart", (e) => {
@@ -1468,22 +1471,30 @@ var WidgetEditorModal = class extends import_obsidian2.Modal {
         onRefresh();
       }
     });
+    const label = childDef ? `${index + 1}. ${childDef.name} (${t(`type-${childDef.type}`)})` : `${index + 1}. [\u5DF2\u5220\u9664] ${childId}`;
     card.createEl("span", {
       cls: "xyw-child-label-simple",
-      text: `${index + 1}. ${child.name} (${t(`type-${child.type}`)})`
+      text: label
     });
     const acts = card.createEl("div", { cls: "xyw-child-actions-simple" });
-    new import_obsidian2.ButtonComponent(acts).setIcon("copy").setTooltip("Duplicate").onClick(() => {
-      const copy = JSON.parse(JSON.stringify(children[index]));
-      children.splice(index + 1, 0, copy);
-      onRefresh();
+    new import_obsidian2.ButtonComponent(acts).setIcon("copy").setTooltip(t("btn-duplicate")).onClick(() => {
+      if (childDef) {
+        const copy = JSON.parse(JSON.stringify(childDef));
+        delete copy.id;
+        delete copy.createdAt;
+        delete copy.updatedAt;
+        this.store.addWidget(copy).then((saved) => {
+          children.splice(index + 1, 0, saved.id);
+          onRefresh();
+        });
+      }
     });
     new import_obsidian2.ButtonComponent(acts).setIcon("pencil").setTooltip(t("btn-edit")).onClick(async () => {
-      const modal = new ChildEditorModal(this.app, children[index]);
-      const result = await modal.openAndGet();
-      if (result) {
-        children[index] = result;
-        onRefresh();
+      if (childDef) {
+        const modal = new ChildEditorModal(this.app, this.store, childId);
+        const id = await modal.openAndGet();
+        if (id)
+          onRefresh();
       }
     });
     new import_obsidian2.ButtonComponent(acts).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(() => {
@@ -1531,6 +1542,17 @@ var CodeBlockRenderer = class {
     this.containerMap.clear();
     this.cleanupFns = [];
   }
+  resolveChildren(ids) {
+    if (!ids)
+      return [];
+    const result = [];
+    for (const id of ids) {
+      const def = this.store.getWidget(id);
+      if (def)
+        result.push(def);
+    }
+    return result;
+  }
   async render(source, container) {
     container.empty();
     container.addClass("xyw-block");
@@ -1561,11 +1583,12 @@ var CodeBlockRenderer = class {
       if (data.settings) {
         Object.assign(mergedSettings, data.settings);
       }
+      const resolvedChildren = this.resolveChildren(def.children);
       await widget.render(container, {
         type: def.type,
         title: data.title || def.name,
         settings: mergedSettings,
-        children: def.children,
+        children: resolvedChildren,
         style: def.style,
         filters: def.filters
       });
@@ -1679,16 +1702,11 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
     super(app, plugin);
     this.plugin = plugin;
     this.store = store;
-    this.filterText = "";
   }
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: t("settings-widget-mgr") });
-    new import_obsidian5.Setting(containerEl).setDesc(t("codeblock-hint"));
-    new import_obsidian5.Setting(containerEl).addButton((btn) => btn.setButtonText(t("btn-new-widget")).setCta().onClick(() => {
-      new WidgetEditorModal(this.app, this.plugin, this.store, null, () => this.display()).open();
-    })).addButton((btn) => btn.setButtonText(t("btn-export")).onClick(() => {
+    new import_obsidian5.Setting(containerEl).setName(t("settings-widget-mgr")).setDesc(t("codeblock-hint")).addButton((btn) => btn.setButtonText(t("btn-export")).onClick(() => {
       const data = this.store.exportWidgets();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const a = document.createElement("a");
@@ -1721,60 +1739,116 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
       };
       input.click();
     }));
-    new import_obsidian5.Setting(containerEl).addSearch((cb) => cb.setPlaceholder("Search widgets...").setValue(this.filterText).onChange((v) => {
-      this.filterText = v.toLowerCase();
-      this.display();
-    }));
-    let widgets = this.store.getWidgets();
-    if (this.filterText) {
-      widgets = widgets.filter(
-        (w) => w.name.toLowerCase().includes(this.filterText) || w.id.toLowerCase().includes(this.filterText) || t(`type-${w.type}`).toLowerCase().includes(this.filterText)
-      );
-    }
-    if (!widgets.length) {
-      containerEl.createEl("p", { cls: "xyw-empty-state", text: this.filterText ? "No matching widgets." : t("label-no-widgets") });
+    const containers = this.store.getContainerWidgets();
+    const leaves = this.store.getLeafWidgets();
+    if (containers.length === 0 && leaves.length === 0) {
+      containerEl.createEl("p", { cls: "xyw-empty-state", text: t("label-no-widgets") });
       return;
     }
-    const list = containerEl.createEl("div", { cls: "xyw-widget-list" });
-    for (const w of widgets) {
-      const item = list.createEl("div", { cls: "xyw-widget-card" });
-      const info = item.createEl("div", { cls: "xyw-widget-info" });
-      const parts = [t(`type-${w.type}`), w.id];
-      if (w.children?.length)
-        parts.push(`[${w.children.length}]`);
-      info.createEl("div", { cls: "xyw-widget-name", text: w.name });
-      info.createEl("div", { cls: "xyw-widget-meta", text: parts.join(" \xB7 ") });
-      const actions = item.createEl("div", { cls: "xyw-widget-actions" });
-      new import_obsidian5.ButtonComponent(actions).setIcon("clipboard-copy").setTooltip("Copy code block").onClick(() => {
-        navigator.clipboard.writeText(`\`\`\`xiaoyuanwidget
+    if (containers.length > 0) {
+      const containerHeader = containerEl.createEl("div", { cls: "xyw-section-header" });
+      containerHeader.createEl("h3", { text: `\u{1F4E6} ${t("label-container")}` });
+      new import_obsidian5.ButtonComponent(containerHeader).setButtonText("\u65B0\u5EFA").setCta().onClick(() => {
+        new WidgetEditorModal(this.app, this.plugin, this.store, null, () => this.display()).open();
+      });
+      const list = containerEl.createEl("div", { cls: "xyw-widget-list" });
+      for (const w of containers) {
+        this.renderWidgetCard(list, w);
+      }
+    }
+    if (leaves.length > 0) {
+      const leafHeader = containerEl.createEl("div", { cls: "xyw-section-header" });
+      leafHeader.createEl("h3", { text: `\u{1F331} ${t("label-leaf")}` });
+      new import_obsidian5.ButtonComponent(leafHeader).setButtonText("\u65B0\u5EFA").setCta().onClick(async () => {
+        const modal = new ChildEditorModal(this.app, this.store, null);
+        await modal.openAndGet();
+        this.display();
+      });
+      const list = containerEl.createEl("div", { cls: "xyw-widget-list" });
+      for (const w of leaves) {
+        this.renderWidgetCard(list, w);
+      }
+    }
+  }
+  renderWidgetCard(list, w) {
+    const item = list.createEl("div", { cls: "xyw-widget-card" });
+    const info = item.createEl("div", { cls: "xyw-widget-info" });
+    const parts = [t(`type-${w.type}`), w.id];
+    if (w.children?.length)
+      parts.push(`[${w.children.length}]`);
+    if (isLeafType(w.type)) {
+      const refs = this.store.getReferencingContainers(w.id);
+      if (refs.length > 0)
+        parts.push(`[${refs.length}]`);
+    }
+    info.createEl("div", { cls: "xyw-widget-name", text: w.name });
+    info.createEl("div", { cls: "xyw-widget-meta", text: parts.join(" \xB7 ") });
+    const actions = item.createEl("div", { cls: "xyw-widget-actions" });
+    new import_obsidian5.ButtonComponent(actions).setIcon("link").setTooltip(t("context-reference-wgt")).onClick(() => {
+      navigator.clipboard.writeText(`\`\`\`xiaoyuanwidget
 id: ${w.id}
 \`\`\``).then(() => new import_obsidian5.Notice(t("msg-copied")));
+    });
+    new import_obsidian5.ButtonComponent(actions).setIcon("copy").setTooltip(t("btn-duplicate")).onClick(async () => {
+      const saved = await this.store.addWidget({
+        name: w.name + " (\u526F\u672C)",
+        type: w.type,
+        settings: w.settings ? JSON.parse(JSON.stringify(w.settings)) : {},
+        children: w.children ? [...w.children] : [],
+        style: w.style ? JSON.parse(JSON.stringify(w.style)) : void 0,
+        filters: w.filters ? JSON.parse(JSON.stringify(w.filters)) : void 0
       });
-      new import_obsidian5.ButtonComponent(actions).setIcon("search").setTooltip(t("label-find-references")).onClick(async () => {
-        const refs = await scanWidgetReferences(this.app, w.id);
-        const refCount = refs.length;
-        if (!refCount) {
-          new import_obsidian5.Notice(t("label-no-widgets"));
-          return;
-        }
-        const modal = new import_obsidian5.Modal(this.app);
-        modal.contentEl.createEl("h3", { text: `${t("label-find-references")} \u2014 ${w.name}` });
-        const list2 = modal.contentEl.createEl("div", { cls: "xyw-widget-list" });
-        for (const ref of refs) {
-          list2.createEl("div", { cls: "xyw-widget-card", text: ref.filePath });
-        }
-        modal.open();
+      if (isLeafType(w.type)) {
+        const modal = new ChildEditorModal(this.app, this.store, saved.id);
+        await modal.openAndGet();
+        this.display();
+      } else {
+        new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, () => this.display()).open();
+      }
+    });
+    new import_obsidian5.ButtonComponent(actions).setIcon("search").setTooltip(t("label-find-references")).onClick(async () => {
+      const refs = await scanWidgetReferences(this.app, w.id);
+      const refCount = refs.length;
+      if (!refCount) {
+        new import_obsidian5.Notice(t("label-no-widgets"));
+        return;
+      }
+      const modal = new import_obsidian5.Modal(this.app);
+      modal.contentEl.createEl("h3", { text: `${t("label-find-references")} \u2014 ${w.name}` });
+      const list2 = modal.contentEl.createEl("div", { cls: "xyw-widget-list" });
+      for (const ref of refs) {
+        list2.createEl("div", { cls: "xyw-widget-card", text: ref.filePath });
+      }
+      modal.open();
+    });
+    if (isLeafType(w.type)) {
+      new import_obsidian5.ButtonComponent(actions).setIcon("pencil").setTooltip(t("btn-edit")).onClick(async () => {
+        const modal = new ChildEditorModal(this.app, this.store, w.id);
+        await modal.openAndGet();
+        this.display();
       });
+    } else {
       new import_obsidian5.ButtonComponent(actions).setIcon("pencil").setTooltip(t("btn-edit")).onClick(() => {
         new WidgetEditorModal(this.app, this.plugin, this.store, w.id, () => this.display()).open();
       });
-      new import_obsidian5.ButtonComponent(actions).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(async () => {
-        if (confirm(t2("msg-confirm-delete", { name: w.name }))) {
-          await this.store.deleteWidget(w.id);
-          this.display();
-        }
-      });
     }
+    new import_obsidian5.ButtonComponent(actions).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(async () => {
+      if (isLeafType(w.type)) {
+        const refs = this.store.getReferencingContainers(w.id);
+        if (refs.length > 0) {
+          if (!confirm(t2("msg-delete-referenced", { name: w.name, n: String(refs.length) })))
+            return;
+        } else {
+          if (!confirm(t2("msg-confirm-delete", { name: w.name })))
+            return;
+        }
+      } else {
+        if (!confirm(t2("msg-confirm-delete", { name: w.name })))
+          return;
+      }
+      await this.store.deleteWidget(w.id);
+      this.display();
+    });
   }
 };
 
@@ -1789,6 +1863,7 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
     );
     this.renderer = new CodeBlockRenderer(this.store, this);
     this.registerWidgetTypes();
+    await this.migrateLegacyData();
     this.registerCodeBlockProcessor();
     this.registerContextMenu();
     this.registerCommands();
@@ -1934,6 +2009,32 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
       registerWidgetType(ctor, meta);
     }
   }
+  async migrateLegacyData() {
+    const widgets = this.store.getWidgets();
+    let changed = false;
+    for (const w of widgets) {
+      if (w.children && w.children.length > 0 && typeof w.children[0] === "object") {
+        const oldChildren = w.children;
+        const newIds = [];
+        for (const child of oldChildren) {
+          const saved = await this.store.addWidget({
+            name: child.name,
+            type: child.type,
+            settings: child.settings || {},
+            children: [],
+            style: child.style,
+            filters: child.filters
+          });
+          newIds.push(saved.id);
+        }
+        w.children = newIds;
+        await this.store.updateWidget(w.id, { children: newIds });
+        changed = true;
+      }
+    }
+    if (changed)
+      new import_obsidian6.Notice("\u5DF2\u8FC1\u79FB\u65E7\u6570\u636E\uFF0C\u5B50\u90E8\u4EF6\u5DF2\u63D0\u5347\u4E3A\u72EC\u7ACB\u90E8\u4EF6");
+  }
   registerCodeBlockProcessor() {
     this.registerMarkdownCodeBlockProcessor("xiaoyuanwidget", async (source, el, ctx) => {
       await this.renderer.render(source, el);
@@ -1957,69 +2058,53 @@ var WidgetPlugin = class extends import_obsidian6.Plugin {
             }).open();
           });
         });
-        const widgets = this.store.getWidgets();
-        if (widgets.length === 0) {
-          rootSub.addItem((item) => {
-            item.setTitle(t("label-no-widgets"));
-            item.setDisabled(true);
+        const containers = this.store.getContainerWidgets();
+        const leaves = this.store.getLeafWidgets();
+        const addWidgetSub = (parentSub, title, widgets, insert) => {
+          let sub = null;
+          parentSub.addItem((item) => {
+            item.setTitle(title);
+            sub = item.setSubmenu();
           });
-          return;
-        }
-        let insertSub = null;
-        rootSub.addItem((item) => {
-          item.setTitle(t("context-insert-wgt"));
-          insertSub = item.setSubmenu();
-        });
-        if (!insertSub)
-          return;
-        const containerWidgets = widgets.filter((w) => isContainerType(w.type));
-        const leafWidgets = widgets.filter((w) => !isContainerType(w.type));
-        if (leafWidgets.length > 0) {
-          let leafSub = null;
-          insertSub.addItem((item) => {
-            item.setTitle("Leaf Widgets");
-            leafSub = item.setSubmenu();
-          });
-          if (leafSub) {
-            for (const w of leafWidgets) {
-              leafSub.addItem((item) => {
+          if (sub) {
+            for (const w of widgets) {
+              sub.addItem((item) => {
                 item.setTitle(w.name);
                 item.onClick(() => {
-                  this.insertCodeBlock(editor, w.id);
+                  if (insert) {
+                    this.insertCodeBlock(editor, w.id);
+                  } else {
+                    const copy = JSON.parse(JSON.stringify(w));
+                    delete copy.id;
+                    delete copy.createdAt;
+                    delete copy.updatedAt;
+                    this.store.addWidget({
+                      name: w.name + " (\u526F\u672C)",
+                      type: w.type,
+                      settings: copy.settings || {},
+                      children: copy.children ? [...copy.children] : [],
+                      style: copy.style,
+                      filters: copy.filters
+                    }).then((saved) => {
+                      new WidgetEditorModal(this.app, this, this.store, saved.id, (widget) => {
+                        if (widget)
+                          this.insertCodeBlock(editor, widget.id);
+                      }).open();
+                    });
+                  }
                 });
               });
             }
           }
-        }
-        if (containerWidgets.length > 0) {
-          const grouped = /* @__PURE__ */ new Map();
-          for (const w of containerWidgets) {
-            const list = grouped.get(w.type) || [];
-            list.push(w);
-            grouped.set(w.type, list);
-          }
-          const typeOrder = getAllWidgetTypes();
-          for (const type of typeOrder) {
-            const list = grouped.get(type);
-            if (!list || list.length === 0)
-              continue;
-            let typeSub = null;
-            insertSub.addItem((item) => {
-              item.setTitle(t(`type-${type}`));
-              typeSub = item.setSubmenu();
-            });
-            if (!typeSub)
-              continue;
-            for (const w of list) {
-              typeSub.addItem((item) => {
-                item.setTitle(w.name);
-                item.onClick(() => {
-                  this.insertCodeBlock(editor, w.id);
-                });
-              });
-            }
-          }
-        }
+        };
+        if (containers.length > 0)
+          addWidgetSub(rootSub, "\u5F15\u7528\u5BB9\u5668", containers, true);
+        if (leaves.length > 0)
+          addWidgetSub(rootSub, "\u5F15\u7528\u53F6\u5B50", leaves, true);
+        if (containers.length > 0)
+          addWidgetSub(rootSub, "\u590D\u5236\u5BB9\u5668", containers, false);
+        if (leaves.length > 0)
+          addWidgetSub(rootSub, "\u590D\u5236\u53F6\u5B50", leaves, false);
       })
     );
   }

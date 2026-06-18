@@ -1,6 +1,6 @@
 import { WidgetStore } from '../store/WidgetStore';
 import { createWidget } from '../widgets/registry';
-import { WidgetCodeBlockData, IWidget } from '../types';
+import { WidgetCodeBlockData, IWidget, WidgetDefinition } from '../types';
 import type WidgetPlugin from '../main';
 import { WidgetEditorModal } from '../modals';
 import { setIcon } from 'obsidian';
@@ -43,6 +43,16 @@ export class CodeBlockRenderer {
     this.cleanupFns = [];
   }
 
+  private resolveChildren(ids: string[] | undefined): WidgetDefinition[] {
+    if (!ids) return [];
+    const result: WidgetDefinition[] = [];
+    for (const id of ids) {
+      const def = this.store.getWidget(id);
+      if (def) result.push(def);
+    }
+    return result;
+  }
+
   async render(source: string, container: HTMLElement): Promise<void> {
     container.empty();
     container.addClass('xyw-block');
@@ -78,11 +88,12 @@ export class CodeBlockRenderer {
       if (data.settings) {
         Object.assign(mergedSettings, data.settings);
       }
+      const resolvedChildren = this.resolveChildren(def.children);
       await widget.render(container, {
         type: def.type,
         title: data.title || def.name,
         settings: mergedSettings,
-        children: def.children,
+        children: resolvedChildren,
         style: def.style,
         filters: def.filters,
       });

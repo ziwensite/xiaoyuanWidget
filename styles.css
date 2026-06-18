@@ -397,6 +397,10 @@ button.xyw-edit-overlay:hover {
   align-items: center;
   margin-top: 16px;
 }
+.xyw-bottom-left {
+  display: flex;
+  gap: 8px;
+}
 .xyw-bottom-right {
   display: flex;
   gap: 8px;

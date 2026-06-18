@@ -1,4 +1,4 @@
-import { WidgetConfig, ChildWidgetConfig, AnyWidgetType, IWidget } from '../../types';
+import { WidgetConfig, WidgetDefinition, AnyWidgetType, IWidget } from '../../types';
 import { BaseWidget } from '../base';
 import { createWidget } from '../registry';
 import { t } from '../../i18n';
@@ -11,7 +11,7 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
   abstract getType(): string;
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
-    const children = config.children ?? [];
+    const children = config.children as WidgetDefinition[] ?? [];
     if (!children.length) {
       container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-children') });
       return;
@@ -34,7 +34,7 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
     }
   }
 
-  private buildTabs(tabBar: HTMLElement, tabContent: HTMLElement, children: ChildWidgetConfig[], config: WidgetConfig): void {
+  private buildTabs(tabBar: HTMLElement, tabContent: HTMLElement, children: WidgetDefinition[], config: WidgetConfig): void {
     this.activeIndex = Math.min(this.activeIndex, children.length - 1);
 
     for (let i = 0; i < children.length; i++) {
@@ -59,18 +59,17 @@ export abstract class BaseContainerTabWidget extends BaseWidget {
     }
   }
 
-  private async renderChildContent(container: HTMLElement, child: ChildWidgetConfig): Promise<void> {
+  private async renderChildContent(container: HTMLElement, child: WidgetDefinition): Promise<void> {
     if (this.childWidget) {
       this.childWidget.destroy();
       this.childWidget = null;
     }
-    const widget = createWidget(child.type as AnyWidgetType);
+    const widget = createWidget(child.type);
     if (widget) {
       await widget.render(container, {
-        type: child.type as AnyWidgetType,
+        type: child.type,
         title: child.name,
         settings: child.settings,
-        children: child.children,
         style: child.style,
         filters: child.filters,
       });

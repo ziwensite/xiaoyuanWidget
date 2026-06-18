@@ -5,35 +5,100 @@
       "type": "container-row",
       "settings": {},
       "children": [
-        {
-          "name": "总数",
-          "type": "stats-card",
-          "settings": {
-            "dimension": "total"
-          },
-          "style": {
-            "width": "",
-            "height": "",
-            "title": {
-              "align": "right"
-            },
-            "content": {
-              "align": "right"
-            },
-            "borderColor": "#f70202"
-          }
-        },
-        {
-          "name": "全部",
-          "type": "stats-card",
-          "settings": {
-            "dimension": "week"
-          }
-        }
+        "20260618102724_34wj",
+        "20260618102823_9hj9"
       ],
       "id": "20260617143316_wn3d",
       "createdAt": 1781677996102,
-      "updatedAt": 1781711286527
+      "updatedAt": 1781749706027
+    },
+    {
+      "name": "笔记数量 (副本)",
+      "type": "container-row",
+      "settings": {},
+      "children": [],
+      "id": "20260618102638_b4bz",
+      "createdAt": 1781749598722,
+      "updatedAt": 1781749598722
+    },
+    {
+      "name": "笔记总数",
+      "type": "stats-card",
+      "settings": {
+        "dimension": "total"
+      },
+      "children": [],
+      "id": "20260618102724_34wj",
+      "createdAt": 1781749644846,
+      "updatedAt": 1781749644846
+    },
+    {
+      "name": "本周笔记",
+      "type": "stats-card",
+      "settings": {
+        "dimension": "week"
+      },
+      "children": [],
+      "id": "20260618102823_9hj9",
+      "createdAt": 1781749703630,
+      "updatedAt": 1781749703630
+    },
+    {
+      "name": "笔记数量 (副本)",
+      "type": "container-row",
+      "settings": {},
+      "children": [
+        "20260618102724_34wj",
+        "20260618102823_9hj9"
+      ],
+      "id": "20260618103917_382c",
+      "createdAt": 1781750357877,
+      "updatedAt": 1781750357877
+    },
+    {
+      "name": "本周笔记 (副本)",
+      "type": "stats-card",
+      "settings": {
+        "dimension": "week"
+      },
+      "children": [],
+      "id": "20260618104616_5q8z",
+      "createdAt": 1781750776708,
+      "updatedAt": 1781750776708
+    },
+    {
+      "name": "本周笔记 (副本)",
+      "type": "stats-card",
+      "settings": {
+        "dimension": "week"
+      },
+      "children": [],
+      "id": "20260618104619_2k0l",
+      "createdAt": 1781750779834,
+      "updatedAt": 1781750779834
+    },
+    {
+      "name": "笔记数量 (副本) (副本)",
+      "type": "container-row",
+      "settings": {},
+      "children": [
+        "20260618102724_34wj",
+        "20260618102823_9hj9"
+      ],
+      "id": "20260618104636_gkyx",
+      "createdAt": 1781750796884,
+      "updatedAt": 1781750796884
+    },
+    {
+      "name": "笔记总数",
+      "type": "stats-card",
+      "settings": {
+        "dimension": "total"
+      },
+      "children": [],
+      "id": "20260618164045_gb52",
+      "createdAt": 1781772045564,
+      "updatedAt": 1781772045564
     }
   ]
 }

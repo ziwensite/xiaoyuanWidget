@@ -1,4 +1,4 @@
-import { WidgetConfig, AnyWidgetType } from '../../types';
+import { WidgetConfig, WidgetDefinition } from '../../types';
 import { BaseWidget } from '../base';
 import { createWidget } from '../registry';
 import { t } from '../../i18n';
@@ -7,7 +7,7 @@ export class ContainerColWidget extends BaseWidget {
   getType(): string { return 'container-col'; }
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
-    const children = config.children ?? [];
+    const children = config.children as WidgetDefinition[] ?? [];
     if (!children.length) {
       container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-children') });
       return;
@@ -22,7 +22,6 @@ export class ContainerColWidget extends BaseWidget {
           type: child.type,
           title: child.name,
           settings: child.settings,
-          children: child.children,
           style: child.style,
           filters: child.filters,
         });

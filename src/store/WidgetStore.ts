@@ -1,5 +1,6 @@
 import { WidgetDefinition, WidgetStoreData } from '../types';
 import { generateId } from '../utils';
+import { isContainerType, isLeafType } from '../modals/_shared';
 
 export class WidgetStore {
   private data: WidgetStoreData = { widgets: [] };
@@ -25,6 +26,24 @@ export class WidgetStore {
 
   getWidget(id: string): WidgetDefinition | undefined {
     return this.data.widgets.find(w => w.id === id);
+  }
+
+  getLeafWidgets(): WidgetDefinition[] {
+    return this.data.widgets.filter(w => isLeafType(w.type));
+  }
+
+  getContainerWidgets(): WidgetDefinition[] {
+    return this.data.widgets.filter(w => isContainerType(w.type));
+  }
+
+  getReferencingContainers(id: string): string[] {
+    const result: string[] = [];
+    for (const w of this.data.widgets) {
+      if (w.children?.includes(id)) {
+        result.push(w.name);
+      }
+    }
+    return result;
   }
 
   async addWidget(def: Omit<WidgetDefinition, 'id' | 'createdAt' | 'updatedAt'>): Promise<WidgetDefinition> {

@@ -3,14 +3,14 @@ export type Lang = 'en' | 'zh';
 let currentLang: Lang = 'zh';
 
 const translations: Record<string, Record<Lang, string>> = {
-  'plugin-name': { en: 'xiaoyuanWidget', zh: '小元挂件' },
-  'plugin-desc': { en: 'Modular widgets — stats, Dataview queries, tag cloud and more', zh: '模块化挂件 — 统计、Dataview 查询、标签云等' },
+  'plugin-name': { en: 'xiaoyuanWidget', zh: '小元部件' },
+  'plugin-desc': { en: 'Modular widgets — stats, Dataview queries, tag cloud and more', zh: '模块化部件 — 统计、Dataview 查询、标签云等' },
 
   'settings-general': { en: 'General Settings', zh: '通用设置' },
-  'settings-widget-mgr': { en: 'Widget Manager', zh: '挂件管理' },
+  'settings-widget-mgr': { en: 'Widget Manager', zh: '部件管理' },
   'settings-dataview': { en: 'Dataview Integration', zh: 'Dataview 集成' },
 
-  'btn-new-widget': { en: 'New Widget', zh: '新建挂件' },
+  'btn-new-widget': { en: 'New Widget', zh: '新建部件' },
   'btn-edit': { en: 'Edit', zh: '编辑' },
   'btn-delete': { en: 'Delete', zh: '删除' },
   'btn-save': { en: 'Save', zh: '保存' },
@@ -27,22 +27,22 @@ const translations: Record<string, Record<Lang, string>> = {
   'label-usage-count': { en: 'Usage Count', zh: '使用次数' },
   'label-created': { en: 'Created', zh: '创建时间' },
   'label-updated': { en: 'Updated', zh: '更新时间' },
-  'label-no-widgets': { en: 'No widgets yet. Click "New Widget" to create one.', zh: '暂无挂件，点击"新建挂件"创建第一个。' },
-  'label-widget-id': { en: 'Widget ID', zh: '挂件 ID' },
-  'label-select-widget': { en: 'Select a widget', zh: '选择一个挂件' },
+  'label-no-widgets': { en: 'No widgets yet. Click "New Widget" to create one.', zh: '暂无部件，点击"新建部件"创建第一个。' },
+  'label-widget-id': { en: 'Widget ID', zh: '部件 ID' },
+  'label-select-widget': { en: 'Select a widget', zh: '选择一个部件' },
   'label-find-references': { en: 'Find References', zh: '查找引用' },
 
-  'title-edit-widget': { en: 'Edit Widget', zh: '编辑挂件' },
-  'title-new-widget': { en: 'New Widget', zh: '新建挂件' },
-  'title-pick-widget': { en: 'Insert xiaoyuanWidget', zh: '插入小元挂件' },
+  'title-edit-widget': { en: 'Edit Widget', zh: '编辑部件' },
+  'title-new-widget': { en: 'New Widget', zh: '新建部件' },
+  'title-pick-widget': { en: 'Insert xiaoyuanWidget', zh: '插入小元部件' },
   'title-widget-preview': { en: 'Preview', zh: '预览' },
 
-  'msg-confirm-delete': { en: 'Are you sure you want to delete "{name}"?', zh: '确定删除挂件"{name}"吗？' },
+  'msg-confirm-delete': { en: 'Are you sure you want to delete "{name}"?', zh: '确定删除部件"{name}"吗？' },
   'msg-widget-exists': { en: 'A widget with this ID already exists.', zh: '此 ID 已存在。' },
   'msg-require-dataview': { en: 'Dataview plugin is required. Install and enable it first.', zh: '需要 Dataview 插件，请先安装并启用。' },
   'msg-dataview-query-error': { en: 'Query error: {msg}', zh: '查询错误：{msg}' },
   'msg-no-data': { en: 'No data.', zh: '暂无数据。' },
-  'msg-import-success': { en: 'Imported {n} widget(s).', zh: '已导入 {n} 个挂件。' },
+  'msg-import-success': { en: 'Imported {n} widget(s).', zh: '已导入 {n} 个部件。' },
   'msg-copied': { en: 'Copied to clipboard!', zh: '已复制到剪贴板！' },
 
   'type-stats-card': { en: 'Stats Card', zh: '统计卡片' },
@@ -67,14 +67,14 @@ const translations: Record<string, Record<Lang, string>> = {
   'config-min-count': { en: 'Min Count', zh: '最少出现次数' },
   'config-query': { en: 'DQL Query', zh: 'DQL 查询语句' },
 
-  'label-children': { en: 'Children', zh: '子挂件' },
-  'label-layout-type': { en: 'Layout', zh: '子挂件排列方式' },
-  'label-widget-list': { en: 'Widgets', zh: '挂件列表' },
-  'label-child-list': { en: 'Widgets', zh: '子挂件列表' },
+  'label-children': { en: 'Children', zh: '子部件' },
+  'label-layout-type': { en: 'Layout', zh: '子部件排列方式' },
+  'label-widget-list': { en: 'Widgets', zh: '部件列表' },
+  'label-child-list': { en: 'Widgets', zh: '子部件列表' },
   'btn-rename': { en: 'Rename', zh: '重命名' },
-  'btn-add-child': { en: 'Add Child', zh: '添加子挂件' },
-  'btn-switch-type-warn': { en: 'Switching to a non-container type will clear all children. Continue?', zh: '切换为非容器类型将清除所有子挂件，是否继续？' },
-  'msg-no-children': { en: 'No children. Click "Add Child" to add one.', zh: '暂无子挂件，点击"添加子挂件"添加。' },
+  'btn-add-child': { en: 'Add Child', zh: '添加子部件' },
+  'btn-switch-type-warn': { en: 'Switching to a non-container type will clear all children. Continue?', zh: '切换为非容器类型将清除所有子部件，是否继续？' },
+  'msg-no-children': { en: 'No children. Click "Add Child" to add one.', zh: '暂无子部件，点击"添加子部件"添加。' },
 
   'style-title': { en: 'Title Style', zh: '标题样式' },
   'style-title-align': { en: 'Title Align', zh: '标题对齐' },
@@ -113,11 +113,20 @@ const translations: Record<string, Record<Lang, string>> = {
   'filter-value': { en: 'Value', zh: '值' },
   'filter-logic': { en: 'Logic', zh: '逻辑' },
 
-  'context-insert-widget': { en: 'xiaoyuanWidget', zh: '小元挂件' },
+  'context-insert-widget': { en: 'xiaoyuanWidget', zh: '小元部件' },
   'context-new-widget': { en: 'New Widget', zh: '新建' },
-  'context-insert-wgt': { en: 'Insert Widget', zh: '插入' },
+  'context-reference-wgt': { en: 'Reference', zh: '引用' },
 
-  'codeblock-hint': { en: 'Right-click to insert a widget, or manually write:\n```xiaoyuanwidget\nid: your-widget-id\n```', zh: '右键可插入挂件，或手动编写：\n```xiaoyuanwidget\nid: your-widget-id\n```' },
+  'label-container': { en: 'Container', zh: '容器' },
+  'label-leaf': { en: 'Leaf', zh: '叶子' },
+  'label-reference-count': { en: 'Referenced by {n} container(s)', zh: '被 {n} 个容器引用' },
+
+  'btn-duplicate': { en: 'Duplicate', zh: '复制' },
+  'btn-new-leaf': { en: 'New Leaf Widget', zh: '新建叶子部件' },
+
+  'msg-delete-referenced': { en: '"{name}" is referenced by {n} container(s). Delete anyway?', zh: '"{name}" 被 {n} 个容器引用，确认删除？' },
+
+  'codeblock-hint': { en: 'Right-click to insert a widget, or manually write:\n```xiaoyuanwidget\nid: your-widget-id\n```', zh: '右键可插入部件，或手动编写：\n```xiaoyuanwidget\nid: your-widget-id\n```' },
 };
 
 export function getLang(): Lang {
