@@ -1868,6 +1868,7 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
     super(app, plugin);
     this.plugin = plugin;
     this.store = store;
+    this.filterText = "";
   }
   display() {
     const { containerEl } = this;
@@ -1905,10 +1906,24 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
       };
       input.click();
     }));
-    const containers = this.store.getContainerWidgets();
-    const leaves = this.store.getLeafWidgets();
+    const searchInput = containerEl.createEl("input", {
+      cls: "xyw-picker-search",
+      attr: { placeholder: t("label-filter") }
+    });
+    searchInput.value = this.filterText;
+    searchInput.addEventListener("input", () => {
+      this.filterText = searchInput.value.toLowerCase();
+      this.display();
+    });
+    const filterWidget = (w) => {
+      if (!this.filterText)
+        return true;
+      return w.name.toLowerCase().includes(this.filterText) || w.id.toLowerCase().includes(this.filterText) || t(`type-${w.type}`).toLowerCase().includes(this.filterText);
+    };
+    const containers = this.store.getContainerWidgets().filter(filterWidget);
+    const leaves = this.store.getLeafWidgets().filter(filterWidget);
     if (containers.length === 0 && leaves.length === 0) {
-      containerEl.createEl("p", { cls: "xyw-empty-state", text: t("label-no-widgets") });
+      containerEl.createEl("p", { cls: "xyw-empty-state", text: this.filterText ? "No matching widgets." : t("label-no-widgets") });
       return;
     }
     if (containers.length > 0) {

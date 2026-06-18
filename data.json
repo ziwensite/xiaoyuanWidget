@@ -56,7 +56,7 @@
       "updatedAt": 1781750357877
     },
     {
-      "name": "本周笔记 (副本)",
+      "name": "本周笔记 (541)",
       "type": "stats-card",
       "settings": {
         "dimension": "week"
@@ -64,7 +64,7 @@
       "children": [],
       "id": "20260618104616_5q8z",
       "createdAt": 1781750776708,
-      "updatedAt": 1781794425514
+      "updatedAt": 1781796734268
     },
     {
       "name": "本周笔记 (副本)",
@@ -144,14 +144,6 @@
       "updatedAt": 1781793177859
     },
     {
-      "name": "统计卡片",
-      "type": "stats-card",
-      "settings": {},
-      "id": "20260618224333_ugma",
-      "createdAt": 1781793813520,
-      "updatedAt": 1781793813520
-    },
-    {
       "name": "笔记数量 (123)",
       "type": "container-row",
       "settings": {},
@@ -171,17 +163,6 @@
       "id": "20260618224340_zi1l",
       "createdAt": 1781793820557,
       "updatedAt": 1781793820557
-    },
-    {
-      "name": "笔记总数",
-      "type": "stats-card",
-      "settings": {
-        "dimension": "total"
-      },
-      "children": [],
-      "id": "20260618224345_snum",
-      "createdAt": 1781793825415,
-      "updatedAt": 1781794395604
     }
   ]
 }
