@@ -8,6 +8,7 @@ import { scanWidgetReferences } from './utils/ReferenceScanner';
 
 export class WidgetSettingTab extends PluginSettingTab {
   private filterText = '';
+  private contentDiv: HTMLElement | null = null;
 
   constructor(app: App, private plugin: WidgetPlugin, private store: WidgetStore) {
     super(app, plugin);
@@ -16,6 +17,7 @@ export class WidgetSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    this.contentDiv = null;
 
     new Setting(containerEl)
       .setName(t('settings-widget-mgr'))
@@ -60,8 +62,16 @@ export class WidgetSettingTab extends PluginSettingTab {
     searchInput.value = this.filterText;
     searchInput.addEventListener('input', () => {
       this.filterText = searchInput.value.toLowerCase();
-      this.display();
+      this.renderContent();
     });
+
+    this.contentDiv = containerEl.createEl('div');
+    this.renderContent();
+  }
+
+  private renderContent(): void {
+    if (!this.contentDiv) return;
+    this.contentDiv.empty();
 
     const filterWidget = (w: any) => {
       if (!this.filterText) return true;
@@ -74,12 +84,12 @@ export class WidgetSettingTab extends PluginSettingTab {
     const leaves = this.store.getLeafWidgets().filter(filterWidget);
 
     if (containers.length === 0 && leaves.length === 0) {
-      containerEl.createEl('p', { cls: 'xyw-empty-state', text: this.filterText ? 'No matching widgets.' : t('label-no-widgets') });
+      this.contentDiv.createEl('p', { cls: 'xyw-empty-state', text: this.filterText ? 'No matching widgets.' : t('label-no-widgets') });
       return;
     }
 
     if (containers.length > 0) {
-      const containerHeader = containerEl.createEl('div', { cls: 'xyw-section-header' });
+      const containerHeader = this.contentDiv.createEl('div', { cls: 'xyw-section-header' });
       containerHeader.createEl('h3', { text: `\u{1F4E6} ${t('label-container')}` });
       new ButtonComponent(containerHeader)
         .setButtonText('新建')
@@ -87,14 +97,14 @@ export class WidgetSettingTab extends PluginSettingTab {
         .onClick(() => {
           new WidgetEditorModal(this.app, this.plugin, this.store, null, () => this.display()).open();
         });
-      const list = containerEl.createEl('div', { cls: 'xyw-widget-list' });
+      const list = this.contentDiv.createEl('div', { cls: 'xyw-widget-list' });
       for (const w of containers) {
         this.renderWidgetCard(list, w);
       }
     }
 
     if (leaves.length > 0) {
-      const leafHeader = containerEl.createEl('div', { cls: 'xyw-section-header' });
+      const leafHeader = this.contentDiv.createEl('div', { cls: 'xyw-section-header' });
       leafHeader.createEl('h3', { text: `\u{1F331} ${t('label-leaf')}` });
       new ButtonComponent(leafHeader)
         .setButtonText('新建')
@@ -104,7 +114,7 @@ export class WidgetSettingTab extends PluginSettingTab {
           await modal.openAndGet();
           this.display();
         });
-      const list = containerEl.createEl('div', { cls: 'xyw-widget-list' });
+      const list = this.contentDiv.createEl('div', { cls: 'xyw-widget-list' });
       for (const w of leaves) {
         this.renderWidgetCard(list, w);
       }

@@ -1869,10 +1869,12 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
     this.plugin = plugin;
     this.store = store;
     this.filterText = "";
+    this.contentDiv = null;
   }
   display() {
     const { containerEl } = this;
     containerEl.empty();
+    this.contentDiv = null;
     new import_obsidian5.Setting(containerEl).setName(t("settings-widget-mgr")).setDesc(t("codeblock-hint")).addButton((btn) => btn.setButtonText(t("btn-export")).onClick(() => {
       const data = this.store.exportWidgets();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -1913,8 +1915,15 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
     searchInput.value = this.filterText;
     searchInput.addEventListener("input", () => {
       this.filterText = searchInput.value.toLowerCase();
-      this.display();
+      this.renderContent();
     });
+    this.contentDiv = containerEl.createEl("div");
+    this.renderContent();
+  }
+  renderContent() {
+    if (!this.contentDiv)
+      return;
+    this.contentDiv.empty();
     const filterWidget = (w) => {
       if (!this.filterText)
         return true;
@@ -1923,29 +1932,29 @@ var WidgetSettingTab = class extends import_obsidian5.PluginSettingTab {
     const containers = this.store.getContainerWidgets().filter(filterWidget);
     const leaves = this.store.getLeafWidgets().filter(filterWidget);
     if (containers.length === 0 && leaves.length === 0) {
-      containerEl.createEl("p", { cls: "xyw-empty-state", text: this.filterText ? "No matching widgets." : t("label-no-widgets") });
+      this.contentDiv.createEl("p", { cls: "xyw-empty-state", text: this.filterText ? "No matching widgets." : t("label-no-widgets") });
       return;
     }
     if (containers.length > 0) {
-      const containerHeader = containerEl.createEl("div", { cls: "xyw-section-header" });
+      const containerHeader = this.contentDiv.createEl("div", { cls: "xyw-section-header" });
       containerHeader.createEl("h3", { text: `\u{1F4E6} ${t("label-container")}` });
       new import_obsidian5.ButtonComponent(containerHeader).setButtonText("\u65B0\u5EFA").setCta().onClick(() => {
         new WidgetEditorModal(this.app, this.plugin, this.store, null, () => this.display()).open();
       });
-      const list = containerEl.createEl("div", { cls: "xyw-widget-list" });
+      const list = this.contentDiv.createEl("div", { cls: "xyw-widget-list" });
       for (const w of containers) {
         this.renderWidgetCard(list, w);
       }
     }
     if (leaves.length > 0) {
-      const leafHeader = containerEl.createEl("div", { cls: "xyw-section-header" });
+      const leafHeader = this.contentDiv.createEl("div", { cls: "xyw-section-header" });
       leafHeader.createEl("h3", { text: `\u{1F331} ${t("label-leaf")}` });
       new import_obsidian5.ButtonComponent(leafHeader).setButtonText("\u65B0\u5EFA").setCta().onClick(async () => {
         const modal = new ChildEditorModal(this.app, this.store, null);
         await modal.openAndGet();
         this.display();
       });
-      const list = containerEl.createEl("div", { cls: "xyw-widget-list" });
+      const list = this.contentDiv.createEl("div", { cls: "xyw-widget-list" });
       for (const w of leaves) {
         this.renderWidgetCard(list, w);
       }
