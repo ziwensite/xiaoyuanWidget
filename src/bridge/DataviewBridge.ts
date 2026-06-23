@@ -1,3 +1,5 @@
+import { Component } from 'obsidian';
+
 export interface DataviewQueryResult {
   type: 'table' | 'list' | 'task';
   headers: string[];
@@ -48,5 +50,31 @@ export class DataviewBridge {
       headers: result.value.headers ?? [],
       values: result.value.values ?? [],
     };
+  }
+
+  async execute(query: string, container: HTMLElement, sourcePath: string): Promise<Component> {
+    const dv = this.getAPI();
+    if (!dv) throw new Error('Dataview not available');
+    if (typeof dv.execute !== 'function') {
+      throw new Error('Dataview 版本过低，不支持 execute，请升级');
+    }
+
+    const component = new Component();
+    component.load();
+    await dv.execute(query, container, component, sourcePath);
+    return component;
+  }
+
+  async runJS(code: string, container: HTMLElement, sourcePath: string): Promise<Component> {
+    const dv = this.getAPI();
+    if (!dv) throw new Error('Dataview not available');
+    if (typeof dv.executeJs !== 'function') {
+      throw new Error('Dataview 版本过低，不支持 executeJs，请升级');
+    }
+
+    const component = new Component();
+    component.load();
+    await dv.executeJs(code, container, component, sourcePath);
+    return component;
   }
 }

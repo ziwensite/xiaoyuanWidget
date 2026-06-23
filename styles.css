@@ -1,7 +1,7 @@
 .xyw-block {
-  padding: 12px;
+  padding: 12px 12px 36px;
   margin: 8px 0;
-  min-height: 60px;
+  min-height: 10px;
   position: relative;
 }
 .xyw-block:hover button.xyw-edit-overlay {
@@ -10,8 +10,8 @@
 
 button.xyw-edit-overlay {
   position: absolute;
-  top: 36px;
-  right: 4px;
+  top: 4px;
+  right: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,8 +29,8 @@ button.xyw-edit-overlay:hover {
   font-size: 14px;
   font-weight: 900;
   color: var(--text-muted);
-  padding-bottom: 6px;
-  margin-bottom: 8px; /* 分割线下方留白 */
+  padding: 4px;
+  margin-bottom: 4px; /* 分割线下方留白 */
 }
 
 .xyw-error {
@@ -327,13 +327,15 @@ button.xyw-edit-overlay:hover {
 
 .xyw-tab-bar-h {
   display: flex;
-  gap: 2px;
-  border-bottom: 2px solid var(--background-modifier-border);
-  margin-bottom: 8px;
+  gap: 4px;
+  padding-left: 4px;
 }
 
 .xyw-tab-content-h {
-  padding: 4px 0;
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary-alt);
 }
 
 /* Vertical tabs */
@@ -351,38 +353,29 @@ button.xyw-edit-overlay:hover {
 .xyw-tab-bar-v {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  border-right: 2px solid var(--background-modifier-border);
-  padding-right: 4px;
-  min-width: 80px;
+  gap: 4px;
+  padding-top: 4px;
+  min-width: 60px;
   flex-shrink: 0;
 }
 
 .xyw-tab-content-v {
   flex: 1;
-  padding: 0 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary-alt);
 }
 
-.xyw-tab-btn {
-  padding: 6px 14px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
+.xyw-tab-bar-h .xyw-card-title,
+.xyw-tab-bar-v .xyw-card-title {
   cursor: pointer;
-  font-size: 13px;
-  border-radius: 4px;
-  transition: background 0.15s, color 0.15s;
-  text-align: left;
 }
 
-.xyw-tab-btn:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.xyw-tab-active {
+.xyw-tab-bar-h .xyw-tab-active,
+.xyw-tab-bar-v .xyw-tab-active {
   color: var(--text-accent);
-  background: var(--background-modifier-hover);
   font-weight: 600;
 }
 
@@ -483,8 +476,8 @@ button.xyw-edit-overlay,
 .xyw-edit-overlay svg,
 .xyw-child-actions-simple svg,
 .xyw-widget-actions svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Style & Filter editor UI */
@@ -548,4 +541,322 @@ button.xyw-edit-overlay,
   font-size: 18px;
   padding: 0 6px;
   line-height: 1;
+}
+
+.xyw-textarea-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 8px 0 4px;
+}
+
+.xyw-full-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* ── Dataview content themes ── */
+
+/* Clean */
+.xyw-dv.theme-clean table.dataview.table-view-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+.xyw-dv.theme-clean table.dataview.table-view-table th {
+  background: var(--background-secondary);
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 2px solid var(--background-modifier-border);
+}
+.xyw-dv.theme-clean table.dataview.table-view-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.xyw-dv.theme-clean table.dataview.table-view-table tbody tr:nth-child(even) td {
+  background: var(--background-primary-alt);
+}
+.xyw-dv.theme-clean ul.dataview.list-view-ul li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.xyw-dv.theme-clean ul.dataview.task-list li.task-list-item {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Minimal */
+.xyw-dv.theme-minimal table.dataview.table-view-table th,
+.xyw-dv.theme-minimal table.dataview.table-view-table td {
+  padding: 4px 6px;
+  border: none;
+}
+.xyw-dv.theme-minimal table.dataview.table-view-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.xyw-dv.theme-minimal table.dataview.table-view-table td {
+  font-size: 13px;
+}
+.xyw-dv.theme-minimal ul.dataview.list-view-ul {
+  list-style: none;
+  padding-left: 0;
+}
+.xyw-dv.theme-minimal ul.dataview.list-view-ul li {
+  padding: 2px 0;
+}
+.xyw-dv.theme-minimal ul.dataview.task-list li.task-list-item {
+  padding: 2px 0;
+}
+
+/* Bordered */
+.xyw-dv.theme-bordered table.dataview.table-view-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.xyw-dv.theme-bordered table.dataview.table-view-table th,
+.xyw-dv.theme-bordered table.dataview.table-view-table td {
+  border: 1px solid var(--background-modifier-border);
+  padding: 8px;
+}
+.xyw-dv.theme-bordered table.dataview.table-view-table th {
+  background: var(--background-secondary);
+  font-weight: 600;
+}
+.xyw-dv.theme-bordered table.dataview.table-view-table tbody tr:nth-child(even) td {
+  background: var(--background-primary-alt);
+}
+.xyw-dv.theme-bordered ul.dataview.list-view-ul {
+  list-style: none;
+  padding-left: 0;
+}
+.xyw-dv.theme-bordered ul.dataview.list-view-ul li {
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  margin-bottom: 4px;
+  border-radius: 4px;
+}
+.xyw-dv.theme-bordered ul.dataview.task-list li.task-list-item {
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  margin-bottom: 4px;
+  border-radius: 4px;
+}
+
+/* Same themes for dv-js */
+.xyw-dv-js.theme-clean table.dataview.table-view-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+.xyw-dv-js.theme-clean table.dataview.table-view-table th {
+  background: var(--background-secondary);
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 2px solid var(--background-modifier-border);
+}
+.xyw-dv-js.theme-clean table.dataview.table-view-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.xyw-dv-js.theme-clean table.dataview.table-view-table tbody tr:nth-child(even) td {
+  background: var(--background-primary-alt);
+}
+.xyw-dv-js.theme-clean ul.dataview.list-view-ul li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.xyw-dv-js.theme-clean ul.dataview.task-list li.task-list-item {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.xyw-dv-js.theme-minimal table.dataview.table-view-table th,
+.xyw-dv-js.theme-minimal table.dataview.table-view-table td {
+  padding: 4px 6px;
+  border: none;
+}
+.xyw-dv-js.theme-minimal table.dataview.table-view-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.xyw-dv-js.theme-minimal table.dataview.table-view-table td {
+  font-size: 13px;
+}
+.xyw-dv-js.theme-minimal ul.dataview.list-view-ul {
+  list-style: none;
+  padding-left: 0;
+}
+.xyw-dv-js.theme-minimal ul.dataview.list-view-ul li {
+  padding: 2px 0;
+}
+.xyw-dv-js.theme-minimal ul.dataview.task-list li.task-list-item {
+  padding: 2px 0;
+}
+.xyw-dv-js.theme-bordered table.dataview.table-view-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.xyw-dv-js.theme-bordered table.dataview.table-view-table th,
+.xyw-dv-js.theme-bordered table.dataview.table-view-table td {
+  border: 1px solid var(--background-modifier-border);
+  padding: 8px;
+}
+.xyw-dv-js.theme-bordered table.dataview.table-view-table th {
+  background: var(--background-secondary);
+  font-weight: 600;
+}
+.xyw-dv-js.theme-bordered table.dataview.table-view-table tbody tr:nth-child(even) td {
+  background: var(--background-primary-alt);
+}
+.xyw-dv-js.theme-bordered ul.dataview.list-view-ul {
+  list-style: none;
+  padding-left: 0;
+}
+.xyw-dv-js.theme-bordered ul.dataview.list-view-ul li {
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  margin-bottom: 4px;
+  border-radius: 4px;
+}
+.xyw-dv-js.theme-bordered ul.dataview.task-list li.task-list-item {
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  margin-bottom: 4px;
+  border-radius: 4px;
+}
+
+/* ── Button widget ── */
+
+.xyw-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  width: auto;
+}
+
+.xyw-button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.xyw-button-primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+.xyw-button-primary:hover {
+  filter: brightness(1.1);
+}
+
+.xyw-button-outline {
+  background: transparent;
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+.xyw-button-outline:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.xyw-button-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+.xyw-button-ghost:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.xyw-button-danger {
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+  border-color: var(--background-modifier-error);
+}
+.xyw-button-danger:hover {
+  filter: brightness(1.1);
+}
+
+.xyw-button-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.xyw-button-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Label widget ── */
+
+.xyw-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 14px;
+  color: var(--text-normal);
+  white-space: pre-wrap;
+}
+
+.xyw-label-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.xyw-label-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.xyw-label-heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-normal);
+  padding: 8px 0;
+}
+
+.xyw-label-tag {
+  display: inline-flex;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--tag-background);
+  color: var(--tag-color);
+  font-size: 13px;
+}
+
+.xyw-label-link {
+  color: var(--text-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.xyw-label-link:hover {
+  color: var(--text-accent-hover);
+}
+
+.xyw-label-clickable {
+  cursor: pointer;
+}
+.xyw-label-clickable:hover {
+  opacity: 0.8;
 }

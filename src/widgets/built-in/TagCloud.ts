@@ -47,7 +47,9 @@ export class TagCloudWidget extends BaseWidget {
       .sort((a, b) => b[1] - a[1]);
 
     container.addClass('xyw-tag-cloud');
-    container.createEl('div', { cls: 'xyw-card-title', text: config.title || t('type-tag-cloud') });
+    if (config.title) {
+      container.createEl('div', { cls: 'xyw-card-title', text: config.title });
+    }
 
     if (!sorted.length) {
       container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-data') });

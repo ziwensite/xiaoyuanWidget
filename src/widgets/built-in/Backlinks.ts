@@ -26,7 +26,9 @@ export class BacklinksWidget extends BaseWidget {
     let filtered = applyFilters(backlinkFiles, config.filters);
 
     container.addClass('xyw-recent-files');
-    container.createEl('div', { cls: 'xyw-card-title', text: config.title || t('type-backlinks') });
+    if (config.title) {
+      container.createEl('div', { cls: 'xyw-card-title', text: config.title });
+    }
 
     if (!filtered.length) {
       container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-data') });

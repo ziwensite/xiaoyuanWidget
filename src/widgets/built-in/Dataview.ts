@@ -1,14 +1,24 @@
+import { Component } from 'obsidian';
 import { WidgetConfig } from '../../types';
 import { BaseWidget } from '../base';
 import { t, t2 } from '../../i18n';
 import { DataviewBridge } from '../../bridge/DataviewBridge';
 
-export class DataviewListWidget extends BaseWidget {
-  getType(): string { return 'dv-list'; }
+export class DataviewWidget extends BaseWidget {
+  private dvComponent: Component | null = null;
+
+  getType(): string { return 'dataview'; }
 
   protected async renderContent(container: HTMLElement, config: WidgetConfig): Promise<void> {
-    container.addClass('xyw-dv-list');
-    container.createEl('div', { cls: 'xyw-card-title', text: config.title || 'Dataview List' });
+    if (this.dvComponent) {
+      this.dvComponent.unload();
+      this.dvComponent = null;
+    }
+
+    container.addClass('xyw-dv');
+    if (config.title) {
+      container.createEl('div', { cls: 'xyw-card-title', text: config.title });
+    }
 
     const dv = DataviewBridge.getInstance();
     if (!dv.isAvailable()) {
@@ -23,21 +33,20 @@ export class DataviewListWidget extends BaseWidget {
     }
 
     try {
-      const result = await dv.query(query);
-      if (!result || !result.values.length) {
-        container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-data') });
-        return;
-      }
-
-      const list = container.createEl('ul', { cls: 'xyw-list' });
-      for (const row of result.values) {
-        const item = list.createEl('li', { cls: 'xyw-list-item' });
-        const text = row.map((v: any) => v != null ? String(v) : '-').join(' · ');
-        item.textContent = text;
-      }
+      const outputContainer = container.createEl('div', { cls: 'xyw-dv-output' });
+      this.dvComponent = await dv.execute(query, outputContainer, config.sourcePath ?? '');
     } catch (e: unknown) {
+      container.find('.xyw-dv-output')?.remove();
       const message = e instanceof Error ? e.message : String(e);
       container.createEl('div', { cls: 'xyw-error', text: t2('msg-dataview-query-error', { msg: message }) });
     }
+  }
+
+  destroy(): void {
+    if (this.dvComponent) {
+      this.dvComponent.unload();
+      this.dvComponent = null;
+    }
+    super.destroy();
   }
 }

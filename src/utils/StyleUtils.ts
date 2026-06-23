@@ -1,6 +1,6 @@
 import { WidgetConfig, WidgetStyle, FilterRule } from '../types';
 
-export function applyWidgetStyle(container: HTMLElement, config: WidgetConfig): void {
+export function applyWidgetStyle(container: HTMLElement, config: WidgetConfig, leaf?: boolean): void {
   const style = config.style;
   if (!style) return;
 
@@ -13,25 +13,22 @@ export function applyWidgetStyle(container: HTMLElement, config: WidgetConfig): 
   if (style.width) {
     container.style.width = style.width;
   }
-  if (style.height) {
+  if (leaf) {
+    if (style.height) {
+      container.style.height = style.height;
+    } else {
+      container.style.minHeight = '10px';
+    }
+    container.style.overflowY = 'auto';
+    container.style.overflowX = 'hidden';
+  } else if (style.height) {
     container.style.height = style.height;
   }
+  container.style.paddingTop = style.paddingTop || '';
+  container.style.paddingBottom = style.paddingBottom || '';
+  container.style.paddingLeft = style.paddingLeft || '';
+  container.style.paddingRight = style.paddingRight || '';
 
-  const titleEl = container.querySelector('.xyw-card-title') as HTMLElement | null;
-  if (titleEl && style.title) {
-    if (style.title.align) titleEl.style.textAlign = style.title.align;
-    if (style.title.color) titleEl.style.color = style.title.color;
-    if (style.title.bgColor) titleEl.style.backgroundColor = style.title.bgColor;
-    if (style.title.fontSize) titleEl.style.fontSize = style.title.fontSize;
-    if (style.title.fontWeight) titleEl.style.fontWeight = style.title.fontWeight;
-  }
-
-  if (style.content) {
-    if (style.content.align) container.style.textAlign = style.content.align;
-    if (style.content.color) container.style.color = style.content.color;
-    if (style.content.fontSize) container.style.fontSize = style.content.fontSize;
-    if (style.content.fontWeight) container.style.fontWeight = style.content.fontWeight;
-  }
 }
 
 function getFieldValue(item: any, source: 'yaml' | 'fileprop', field: string): string {

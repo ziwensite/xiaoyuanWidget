@@ -42,11 +42,14 @@ export class StatsCardWidget extends BaseWidget {
       }
     }
 
-    const title = config.title || label;
-
     container.addClass('xyw-stats-card');
-    container.createEl('div', { cls: 'xyw-card-title', text: title });
+    if (config.title) {
+      container.createEl('div', { cls: 'xyw-card-title', text: config.title });
+    }
     container.createEl('div', { cls: 'xyw-card-value', text: String(value) });
-    container.createEl('div', { cls: 'xyw-card-label', text: label });
+    const showLabel = (config.settings.showLabel as string) !== 'hide';
+    if (showLabel) {
+      container.createEl('div', { cls: 'xyw-card-label', text: label });
+    }
   }
 }

@@ -54,9 +54,9 @@ export class CodeBlockRenderer {
     return result;
   }
 
-  async render(source: string, container: HTMLElement): Promise<void> {
+  async render(source: string, container: HTMLElement, sourcePath?: string): Promise<void> {
     container.empty();
-    container.addClass('xyw-block');
+    container.className = 'xyw-block';
 
     let data: WidgetCodeBlockData;
     try {
@@ -92,11 +92,12 @@ export class CodeBlockRenderer {
       const resolvedChildren = this.resolveChildren(def.children) as ChildWidgetConfig[];
       await widget.render(container, {
         type: def.type,
-        title: data.title || def.name,
+        title: data.title || def.title || '',
         settings: mergedSettings,
         children: resolvedChildren,
         style: def.style,
         filters: def.filters,
+        sourcePath,
       });
       this.activeInstances.add(widget);
       this.containerMap.set(container, widget);
@@ -113,11 +114,11 @@ export class CodeBlockRenderer {
       if (!isContainerType(def.type)) {
         const modal = new ChildEditorModal(this.plugin.app, this.store, data.id);
         modal.openAndGet().then(() => {
-          this.render(source, container);
+          this.render(source, container, sourcePath);
         });
       } else {
         new WidgetEditorModal(this.plugin.app, this.plugin, this.store, data.id, () => {
-          this.render(source, container);
+          this.render(source, container, sourcePath);
         }).open();
       }
     });

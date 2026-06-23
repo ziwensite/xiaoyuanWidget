@@ -1,168 +1,141 @@
 {
   "widgets": [
     {
-      "name": "笔记数量",
-      "type": "container-row",
-      "settings": {},
-      "children": [
-        "20260618102724_34wj",
-        "20260618102823_9hj9"
-      ],
-      "id": "20260617143316_wn3d",
-      "createdAt": 1781677996102,
-      "updatedAt": 1781749706027
-    },
-    {
-      "name": "笔记数量 (副本)",
-      "type": "container-row",
-      "settings": {},
-      "children": [],
-      "id": "20260618102638_b4bz",
-      "createdAt": 1781749598722,
-      "updatedAt": 1781749598722
-    },
-    {
       "name": "笔记总数",
       "type": "stats-card",
       "settings": {
-        "dimension": "total"
+        "dimension": "total",
+        "showLabel": "hide"
       },
       "children": [],
       "id": "20260618102724_34wj",
       "createdAt": 1781749644846,
-      "updatedAt": 1781749644846
+      "updatedAt": 1782198765903,
+      "filters": [],
+      "title": "笔记总数",
+      "style": {
+        "title": {
+          "fontSize": ""
+        }
+      }
     },
     {
       "name": "本周笔记",
       "type": "stats-card",
       "settings": {
-        "dimension": "week"
+        "dimension": "week",
+        "showLabel": "hide"
       },
       "children": [],
       "id": "20260618102823_9hj9",
       "createdAt": 1781749703630,
-      "updatedAt": 1781749703630
+      "updatedAt": 1782012250416,
+      "title": "本周笔记",
+      "filters": []
     },
     {
-      "name": "笔记数量 (副本)",
+      "name": "统计测试",
       "type": "container-row",
-      "settings": {},
       "children": [
         "20260618102724_34wj",
         "20260618102823_9hj9"
       ],
-      "id": "20260618103917_382c",
-      "createdAt": 1781750357877,
-      "updatedAt": 1781750357877
+      "id": "20260620205029_z4rg",
+      "createdAt": 1781959829057,
+      "updatedAt": 1782198766944,
+      "style": {
+        "paddingBottom": "0px"
+      }
     },
     {
-      "name": "本周笔记 (541)",
-      "type": "stats-card",
-      "settings": {
-        "dimension": "week"
-      },
-      "children": [],
-      "id": "20260618104616_5q8z",
-      "createdAt": 1781750776708,
-      "updatedAt": 1781796734268
-    },
-    {
-      "name": "本周笔记 (副本)",
-      "type": "stats-card",
-      "settings": {
-        "dimension": "week"
-      },
-      "children": [],
-      "id": "20260618104619_2k0l",
-      "createdAt": 1781750779834,
-      "updatedAt": 1781750779834
-    },
-    {
-      "name": "笔记数量 (副本) (副本)",
+      "name": "测试按钮",
       "type": "container-row",
-      "settings": {},
       "children": [
-        "20260618102724_34wj",
-        "20260618102823_9hj9"
+        "20260623174200_vi62",
+        "20260623175527_x7ow"
       ],
-      "id": "20260618104636_gkyx",
-      "createdAt": 1781750796884,
-      "updatedAt": 1781750796884
+      "id": "20260623170820_hexv",
+      "createdAt": 1782205700916,
+      "updatedAt": 1782220007209,
+      "style": {
+        "height": "160px",
+        "paddingTop": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "paddingRight": "0px"
+      },
+      "settings": {
+        "hAlign": "right",
+        "vAlign": "middle"
+      }
     },
     {
-      "name": "笔记总数",
-      "type": "stats-card",
+      "name": "按钮1",
+      "type": "button",
       "settings": {
-        "dimension": "total"
+        "buttonText": "点我",
+        "buttonStyle": "default",
+        "cssClass": "",
+        "icon": "alert-circle",
+        "customIcon": "",
+        "actionType": "command",
+        "command": "webviewer:open",
+        "notePath": ""
       },
       "children": [],
-      "id": "20260618164045_gb52",
-      "createdAt": 1781772045564,
-      "updatedAt": 1781772045564
+      "title": "",
+      "filters": [],
+      "id": "20260623174200_vi62",
+      "createdAt": 1782207720341,
+      "updatedAt": 1782219296279,
+      "style": {
+        "cardStyle": "default",
+        "content": {
+          "valign": "middle",
+          "align": "left"
+        },
+        "paddingTop": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "width": "20%",
+        "title": {
+          "align": "center"
+        },
+        "height": "20%"
+      }
     },
     {
-      "name": "笔记总数",
-      "type": "stats-card",
+      "name": "标签1",
+      "type": "label",
       "settings": {
-        "dimension": "total"
+        "text": "我是",
+        "labelStyle": "tag",
+        "cssClass": "",
+        "icon": "",
+        "customIcon": "",
+        "actionType": "open-note",
+        "command": "",
+        "notePath": "效率工具/健身记录.md"
       },
       "children": [],
-      "id": "20260618222117_jez3",
-      "createdAt": 1781792477813,
-      "updatedAt": 1781792477813
-    },
-    {
-      "name": "本周笔记",
-      "type": "stats-card",
-      "settings": {
-        "dimension": "week"
-      },
-      "children": [],
-      "id": "20260618223249_1fh9",
-      "createdAt": 1781793169644,
-      "updatedAt": 1781793169644
-    },
-    {
-      "name": "笔记数量 (副本)",
-      "type": "container-row",
-      "settings": {},
-      "children": [],
-      "id": "20260618223254_6f6x",
-      "createdAt": 1781793174265,
-      "updatedAt": 1781793174265
-    },
-    {
-      "name": "笔记数量",
-      "type": "container-row",
-      "settings": {},
-      "children": [
-        "20260618102724_34wj",
-        "20260618102823_9hj9"
-      ],
-      "id": "20260618223257_caji",
-      "createdAt": 1781793177859,
-      "updatedAt": 1781793177859
-    },
-    {
-      "name": "笔记数量 (123)",
-      "type": "container-row",
-      "settings": {},
-      "children": [],
-      "id": "20260618224338_3gz3",
-      "createdAt": 1781793818295,
-      "updatedAt": 1781794414537
-    },
-    {
-      "name": "笔记数量",
-      "type": "container-row",
-      "settings": {},
-      "children": [
-        "20260618102724_34wj",
-        "20260618102823_9hj9"
-      ],
-      "id": "20260618224340_zi1l",
-      "createdAt": 1781793820557,
-      "updatedAt": 1781793820557
+      "title": "",
+      "filters": [],
+      "id": "20260623175527_x7ow",
+      "createdAt": 1782208527324,
+      "updatedAt": 1782213831886,
+      "style": {
+        "content": {
+          "valign": "middle",
+          "align": "center"
+        },
+        "cardStyle": "default",
+        "width": "20%",
+        "title": {
+          "align": "center"
+        },
+        "height": "20%"
+      }
     }
   ]
 }

@@ -25,7 +25,9 @@ export class RecentFilesWidget extends BaseWidget {
       .slice(0, limit);
 
     container.addClass('xyw-recent-files');
-    container.createEl('div', { cls: 'xyw-card-title', text: config.title || t('type-recent-files') });
+    if (config.title) {
+      container.createEl('div', { cls: 'xyw-card-title', text: config.title });
+    }
 
     if (!files.length) {
       container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-data') });

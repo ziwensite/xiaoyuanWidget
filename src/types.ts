@@ -2,10 +2,12 @@ export type WidgetType =
   | 'stats-card'
   | 'recent-files'
   | 'tag-cloud'
-  | 'dv-table'
-  | 'dv-list'
+  | 'dataview'
+  | 'dv-js'
   | 'backlinks'
-  | 'random-note';
+  | 'random-note'
+  | 'button'
+  | 'label';
 
 export type ContainerType =
   | 'container-row'
@@ -25,6 +27,7 @@ export interface WidgetStyle {
   };
   content?: {
     align?: 'left' | 'center' | 'right';
+    valign?: 'top' | 'middle' | 'bottom';
     color?: string;
     fontSize?: string;
     fontWeight?: string;
@@ -32,6 +35,12 @@ export interface WidgetStyle {
   borderColor?: string;
   width?: string;
   height?: string;
+  paddingTop?: string;
+  paddingBottom?: string;
+  paddingLeft?: string;
+  paddingRight?: string;
+  cardStyle?: string;
+  contentStyle?: string;
 }
 
 export interface FilterRule {
@@ -44,6 +53,7 @@ export interface FilterRule {
 
 export interface ChildWidgetConfig {
   name: string;
+  title?: string;
   type: AnyWidgetType;
   settings: Record<string, unknown>;
   children?: ChildWidgetConfig[];
@@ -54,6 +64,7 @@ export interface ChildWidgetConfig {
 export interface WidgetDefinition {
   id: string;
   name: string;
+  title?: string;
   type: AnyWidgetType;
   settings: Record<string, unknown>;
   children?: string[];
@@ -76,6 +87,7 @@ export interface WidgetConfig {
   children?: ChildWidgetConfig[];
   style?: WidgetStyle;
   filters?: FilterRule[];
+  sourcePath?: string;
 }
 
 export interface WidgetMeta {
@@ -92,6 +104,10 @@ export interface SettingField {
   defaultValue: unknown;
   options?: { label: string; value: string }[];
   placeholder?: string;
+  dependsOn?: {
+    field: string;
+    values: unknown[];
+  };
 }
 
 export interface IWidget {

@@ -1,14 +1,47 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting, Notice, FuzzySuggestModal, Command, TFile } from 'obsidian';
 import { t } from '../i18n';
 import { WidgetStore } from '../store/WidgetStore';
 import { getAllWidgetMetas, getWidgetMeta } from '../widgets/registry';
-import { AnyWidgetType, WidgetStyle, FilterRule } from '../types';
+import { AnyWidgetType, WidgetStyle, FilterRule, SettingField } from '../types';
 import { isLeafType } from './_shared';
+
+class CommandPickerModal extends FuzzySuggestModal<Command> {
+  constructor(app: App, private onChooseCmd: (command: Command) => void) {
+    super(app);
+    this.setPlaceholder('Search commands...');
+  }
+  getItems(): Command[] {
+    return (this.app as any).commands.listCommands();
+  }
+  getItemText(command: Command): string {
+    return `${command.name} (${command.id})`;
+  }
+  onChooseItem(command: Command): void {
+    this.onChooseCmd(command);
+  }
+}
+
+class FilePickerModal extends FuzzySuggestModal<TFile> {
+  constructor(app: App, private onChooseFile: (file: TFile) => void) {
+    super(app);
+    this.setPlaceholder('Search notes...');
+  }
+  getItems(): TFile[] {
+    return this.app.vault.getMarkdownFiles();
+  }
+  getItemText(file: TFile): string {
+    return file.path;
+  }
+  onChooseItem(file: TFile): void {
+    this.onChooseFile(file);
+  }
+}
 
 export class ChildEditorModal extends Modal {
   private result: string | null = null;
   private resolve: ((value: string | null) => void) | null = null;
   private editingName = '';
+  private editingTitle = '';
   private editingType: AnyWidgetType = 'stats-card';
   private editingSettings: Record<string, any> = {};
   private editingStyle: WidgetStyle | undefined;
@@ -33,6 +66,7 @@ export class ChildEditorModal extends Modal {
     const existing = this.widgetId ? this.store.getWidget(this.widgetId) : null;
 
     this.editingName = existing?.name ?? '';
+    this.editingTitle = existing?.title ?? '';
     this.editingType = (existing?.type as AnyWidgetType) ?? 'stats-card';
     this.editingSettings = existing?.settings ? { ...existing.settings } : {};
     this.editingStyle = existing?.style ? JSON.parse(JSON.stringify(existing.style)) : undefined;
@@ -57,8 +91,9 @@ const renderAll = () => {
         .onClick(async () => {
           if (!this.editingName.trim()) { new Notice('Name is required'); return; }
           const data: any = { name: this.editingName.trim(), type: this.editingType, settings: this.editingSettings, children: [] };
+          data.title = this.editingTitle.trim();
           if (this.editingStyle && Object.keys(this.editingStyle).length > 0) data.style = this.editingStyle;
-          if (this.editingFilters.length > 0) data.filters = this.editingFilters;
+          data.filters = this.editingFilters;
           if (!existing) {
             const saved = await this.store.addWidget(data);
             this.result = saved.id;
@@ -85,7 +120,12 @@ const renderAll = () => {
       .addText(tc => tc
         .setValue(this.editingName)
         .onChange(v => { this.editingName = v; }));
-    new Setting(container)
+    new Setting(card)
+      .setName('标题')
+      .addText(tc => tc
+        .setValue(this.editingTitle)
+        .onChange(v => { this.editingTitle = v; }));
+    new Setting(card)
       .setName(t('label-type'))
       .addDropdown(dd => {
         for (const m of getAllWidgetMetas()) {
@@ -106,39 +146,98 @@ const renderAll = () => {
           this.renderSettings(container);
         });
       });
+
     const meta = getWidgetMeta(this.editingType);
     if (meta && meta.settingSchema.length > 0) {
+      const depRenderers: Array<() => void> = [];
+      const controlKeys = new Set<string>();
       for (const field of meta.settingSchema) {
-        const setting = new Setting(card).setName(t(field.labelKey));
+        if (field.dependsOn) {
+          controlKeys.add(field.dependsOn.field);
+        }
+      }
+
+      for (const field of meta.settingSchema) {
+        if (field.dependsOn) {
+          const controlVal = this.editingSettings[field.dependsOn.field];
+          if (!field.dependsOn.values.includes(controlVal)) {
+            continue;
+          }
+        }
+
         const currentVal = this.editingSettings[field.key] ?? field.defaultValue;
+
+        if (field.key === 'command') {
+          const s = new Setting(card).setName(t(field.labelKey));
+          s.addText(tc => tc
+            .setPlaceholder(field.placeholder ?? '')
+            .setValue(String(currentVal))
+            .onChange(v => { this.editingSettings[field.key] = v; }));
+          s.addButton(btn => btn
+            .setButtonText('...')
+            .setTooltip('Browse commands')
+            .onClick(() => {
+              new CommandPickerModal(this.app, (cmd) => {
+                this.editingSettings[field.key] = cmd.id;
+                this.renderSettings(container);
+              }).open();
+            }));
+          continue;
+        }
+
+        if (field.key === 'notePath') {
+          const s = new Setting(card).setName(t(field.labelKey));
+          s.addText(tc => tc
+            .setPlaceholder(field.placeholder ?? '')
+            .setValue(String(currentVal))
+            .onChange(v => { this.editingSettings[field.key] = v; }));
+          s.addButton(btn => btn
+            .setButtonText('...')
+            .setTooltip('Browse notes')
+            .onClick(() => {
+              new FilePickerModal(this.app, (file) => {
+                this.editingSettings[field.key] = file.path;
+                this.renderSettings(container);
+              }).open();
+            }));
+          continue;
+        }
+
         switch (field.type) {
           case 'text':
-            setting.addText(tc => tc
+            new Setting(card).setName(t(field.labelKey)).addText(tc => tc
               .setPlaceholder(field.placeholder ?? '')
               .setValue(String(currentVal))
               .onChange(v => { this.editingSettings[field.key] = v; }));
             break;
           case 'number':
-            setting.addText(t => {
+            new Setting(card).setName(t(field.labelKey)).addText(t => {
               t.setPlaceholder(field.placeholder ?? '0');
               t.setValue(String(currentVal));
               t.inputEl.type = 'number';
               t.onChange(v => { this.editingSettings[field.key] = Number(v) || 0; });
             });
             break;
-          case 'textarea':
-            setting.addTextArea(ta => ta
-              .setPlaceholder(field.placeholder ?? '')
-              .setValue(String(currentVal))
-              .onChange(v => { this.editingSettings[field.key] = v; }));
+          case 'textarea': {
+            const label = card.createEl('h4', { text: t(field.labelKey), cls: 'xyw-textarea-label' });
+            const ta = card.createEl('textarea', { cls: 'xyw-full-textarea' });
+            ta.value = String(currentVal);
+            ta.placeholder = field.placeholder ?? '';
+            ta.addEventListener('change', () => { this.editingSettings[field.key] = ta.value; });
             break;
+          }
           case 'select':
             if (field.options) {
               const opts = field.options;
-              setting.addDropdown(dd => {
+              new Setting(card).setName(t(field.labelKey)).addDropdown(dd => {
                 for (const opt of opts) dd.addOption(opt.value, opt.label);
                 dd.setValue(String(currentVal));
-                dd.onChange(v => { this.editingSettings[field.key] = v; });
+                dd.onChange(v => {
+                  this.editingSettings[field.key] = v;
+                  if (controlKeys.has(field.key)) {
+                    this.renderSettings(container);
+                  }
+                });
               });
             }
             break;
@@ -242,6 +341,20 @@ const renderAll = () => {
       });
 
     new Setting(card)
+      .setName(t('style-content-valign'))
+      .addDropdown(dd => {
+        dd.addOption('top', t('valign-top'));
+        dd.addOption('middle', t('valign-middle'));
+        dd.addOption('bottom', t('valign-bottom'));
+        dd.setValue(this.editingStyle?.content?.valign ?? 'top');
+        dd.onChange(v => {
+          if (!this.editingStyle) this.editingStyle = {};
+          if (!this.editingStyle.content) this.editingStyle.content = {};
+          this.editingStyle.content.valign = v as 'top' | 'middle' | 'bottom';
+        });
+      });
+
+    new Setting(card)
       .setName(t('style-content-color'))
       .addText(tc => {
         tc.inputEl.type = 'color';
@@ -296,49 +409,68 @@ const renderAll = () => {
         });
       });
 
-    this.renderSizeSetting(card, t('style-width'), 'width');
-    this.renderSizeSetting(card, t('style-height'), 'height');
+    this.renderPercentSetting(card, t('style-width'), 'width');
+    this.renderPercentSetting(card, t('style-height'), 'height');
+
+    new Setting(card)
+      .setName(t('style-card'))
+      .addDropdown(dd => {
+        dd.addOption('none', t('card-none'));
+        dd.addOption('default', t('card-default'));
+        dd.addOption('bordered', t('card-bordered'));
+        dd.addOption('shadow', t('card-shadow'));
+        dd.setValue(this.editingStyle?.cardStyle ?? 'default');
+        dd.onChange(v => {
+          if (!this.editingStyle) this.editingStyle = {};
+          this.editingStyle.cardStyle = v;
+        });
+      });
+
+    new Setting(card)
+      .setName(t('style-content-style'))
+      .addDropdown(dd => {
+        dd.addOption('default', t('content-default'));
+        dd.addOption('clean', t('content-clean'));
+        dd.addOption('minimal', t('content-minimal'));
+        dd.addOption('bordered', t('content-bordered'));
+        dd.setValue(this.editingStyle?.contentStyle ?? 'default');
+        dd.onChange(v => {
+          if (!this.editingStyle) this.editingStyle = {};
+          this.editingStyle.contentStyle = v;
+        });
+      });
+
+    this.renderPaddingSetting(card, t('style-padding-top') + '（px）', 'paddingTop');
+    this.renderPaddingSetting(card, t('style-padding-bottom') + '（px）', 'paddingBottom');
+    this.renderPaddingSetting(card, t('style-padding-left') + '（px）', 'paddingLeft');
+    this.renderPaddingSetting(card, t('style-padding-right') + '（px）', 'paddingRight');
   }
 
-  private parseSizeValue(val: string | undefined): { num: string; unit: string } {
-    if (!val) return { num: '', unit: 'px' };
-    const match = val.match(/^([\d.]+)\s*(px|%|em|rem|vw|vh|auto)?$/);
-    if (!match) return { num: val, unit: '' };
-    if (match[2] === 'auto') return { num: '', unit: 'auto' };
-    return { num: match[1], unit: match[2] || 'px' };
-  }
-
-  private renderSizeSetting(card: HTMLElement, label: string, prop: 'width' | 'height'): void {
-    const parsed = this.parseSizeValue(this.editingStyle?.[prop]);
-    let textComp: any;
+  private renderPercentSetting(card: HTMLElement, label: string, prop: 'width' | 'height'): void {
     new Setting(card)
       .setName(label)
       .addText(tc => {
-        textComp = tc;
         tc.inputEl.type = 'number';
-        tc.inputEl.placeholder = 'auto';
-        tc.setValue(parsed.num);
+        tc.inputEl.placeholder = '100';
+        const raw = this.editingStyle?.[prop] ?? '';
+        tc.setValue(raw.endsWith('%') ? raw.slice(0, -1) : '');
         tc.onChange(v => {
           if (!this.editingStyle) this.editingStyle = {};
-          const cur = this.editingStyle[prop] || '';
-          const unit = cur.replace(/^[\d.]+/, '') || 'px';
-          this.editingStyle[prop] = v ? `${v}${unit}` : '';
+          this.editingStyle[prop] = v ? `${v}%` : '';
         });
-        if (parsed.unit === 'auto') tc.inputEl.disabled = true;
-      })
-      .addDropdown(dd => {
-        const units = ['px', '%', 'em', 'rem', 'vw', 'vh', 'auto'];
-        for (const u of units) dd.addOption(u, u);
-        dd.setValue(parsed.unit);
-        dd.onChange(v => {
+      });
+  }
+
+  private renderPaddingSetting(card: HTMLElement, label: string, prop: 'paddingTop' | 'paddingBottom' | 'paddingLeft' | 'paddingRight'): void {
+    new Setting(card)
+      .setName(label)
+      .addText(tc => {
+        tc.inputEl.type = 'number';
+        tc.inputEl.placeholder = '默认';
+        tc.setValue(this.editingStyle?.[prop]?.replace(/px$/, '') ?? '');
+        tc.onChange(v => {
           if (!this.editingStyle) this.editingStyle = {};
-          if (v === 'auto') {
-            this.editingStyle[prop] = 'auto';
-            textComp.inputEl.disabled = true;
-          } else {
-            textComp.inputEl.disabled = false;
-            this.editingStyle[prop] = textComp.inputEl.value ? `${textComp.inputEl.value}${v}` : '';
-          }
+          this.editingStyle[prop] = v ? `${v}px` : '';
         });
       });
   }

@@ -145,21 +145,11 @@ export class WidgetSettingTab extends PluginSettingTab {
       .setIcon('copy')
       .setTooltip(t('btn-duplicate'))
       .onClick(async () => {
-        const saved = await this.store.addWidget({
-          name: w.name + ' (\u526F\u672C)',
-          type: w.type,
-          settings: w.settings ? JSON.parse(JSON.stringify(w.settings)) : {},
-          children: w.children ? [...w.children] : [],
-          style: w.style ? JSON.parse(JSON.stringify(w.style)) : undefined,
-          filters: w.filters ? JSON.parse(JSON.stringify(w.filters)) : undefined,
-        });
-        if (isLeafType(w.type)) {
-          const modal = new ChildEditorModal(this.app, this.store, saved.id);
-          await modal.openAndGet();
-          this.display();
-        } else {
-          new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, () => this.display()).open();
-        }
+        const copy = JSON.parse(JSON.stringify(w));
+        delete copy.id; delete copy.createdAt; delete copy.updatedAt;
+        copy.name = w.name + ' 副本';
+        await this.store.addWidget(copy);
+        this.display();
       });
     new ButtonComponent(actions)
       .setIcon('search')

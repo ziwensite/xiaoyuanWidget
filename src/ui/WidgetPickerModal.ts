@@ -116,16 +116,10 @@ export class WidgetPickerModal extends Modal {
       e.stopPropagation();
       const copy = JSON.parse(JSON.stringify(w));
       delete copy.id; delete copy.createdAt; delete copy.updatedAt;
+      copy.name = w.name + ' 副本';
       const saved = await this.store.addWidget(copy);
-      if (!isContainerType(w.type)) {
-        const modal = new ChildEditorModal(this.app, this.store, saved.id);
-        const id = await modal.openAndGet();
-        if (id) { this.onInsert(id); this.close(); }
-      } else {
-        new WidgetEditorModal(this.app, this.plugin, this.store, saved.id, (widget) => {
-          if (widget) { this.onInsert(widget.id); this.close(); }
-        }).open();
-      }
+      this.onInsert(saved.id);
+      this.close();
     });
   }
 

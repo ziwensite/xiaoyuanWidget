@@ -16,7 +16,9 @@ export class RandomNoteWidget extends BaseWidget {
     }
 
     container.addClass('xyw-recent-files');
-    container.createEl('div', { cls: 'xyw-card-title', text: config.title || t('type-random-note') });
+    if (config.title) {
+      container.createEl('div', { cls: 'xyw-card-title', text: config.title });
+    }
 
     const randomFile = files[Math.floor(Math.random() * files.length)];
     const item = container.createEl('div', { cls: 'xyw-file-item', text: randomFile.name });
