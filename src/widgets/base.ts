@@ -1,6 +1,7 @@
 import { IWidget, WidgetConfig } from '../types';
 import { applyWidgetStyle } from '../utils/StyleUtils';
 import { getCardStyleCSS, getContentStyleCSS } from '../utils/StyleThemes';
+import { isContainerType } from '../modals/_shared';
 
 export abstract class BaseWidget implements IWidget {
   protected container: HTMLElement | null = null;
@@ -16,8 +17,7 @@ export abstract class BaseWidget implements IWidget {
     container.empty();
     await this.renderContent(container, config);
     const type = this.getType();
-    const isLeaf = type !== 'container-row' && type !== 'container-col' &&
-                   type !== 'container-tab-h' && type !== 'container-tab-v';
+    const isLeaf = !isContainerType(type);
     applyWidgetStyle(container, config, isLeaf);
 
     const style = config.style;

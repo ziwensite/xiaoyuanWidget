@@ -9,6 +9,7 @@ import { DataviewJSWidget } from './widgets/built-in/DataviewJS';
 import { ContainerRowWidget } from './widgets/built-in/ContainerRow';
 import { ContainerColWidget } from './widgets/built-in/ContainerCol';
 import { ContainerTabHWidget, ContainerTabVWidget } from './widgets/built-in/ContainerTab';
+import { ContainerFreeformWidget } from './widgets/built-in/ContainerFreeform';
 import { BacklinksWidget } from './widgets/built-in/Backlinks';
 import { RandomNoteWidget } from './widgets/built-in/RandomNote';
 import { ButtonWidget } from './widgets/built-in/Button';
@@ -167,6 +168,12 @@ export default class WidgetPlugin extends Plugin {
         type: 'container-tab-v',
         defaultTitle: t('type-container-tab-v'),
         description: 'Arrange child widgets as vertical tabs',
+        settingSchema: [],
+      },
+      {
+        type: 'container-freeform',
+        defaultTitle: t('type-container-freeform'),
+        description: 'Free-form layout with absolute positioning',
         settingSchema: [],
       },
       {
@@ -354,10 +361,11 @@ export default class WidgetPlugin extends Plugin {
       { ctor: ContainerColWidget, meta: metas[6] },
       { ctor: ContainerTabHWidget, meta: metas[7] },
       { ctor: ContainerTabVWidget, meta: metas[8] },
-      { ctor: BacklinksWidget, meta: metas[9] },
-      { ctor: RandomNoteWidget, meta: metas[10] },
-      { ctor: ButtonWidget, meta: metas[11] },
-      { ctor: LabelWidget, meta: metas[12] },
+      { ctor: ContainerFreeformWidget, meta: metas[9] },
+      { ctor: BacklinksWidget, meta: metas[10] },
+      { ctor: RandomNoteWidget, meta: metas[11] },
+      { ctor: ButtonWidget, meta: metas[12] },
+      { ctor: LabelWidget, meta: metas[13] },
     ];
 
     for (const { ctor, meta } of widgets) {

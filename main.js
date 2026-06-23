@@ -38,7 +38,7 @@ function generateId() {
 }
 
 // src/modals/_shared.ts
-var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v"]);
+var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v", "container-freeform"]);
 var LEAF_TYPES = /* @__PURE__ */ new Set(["stats-card", "recent-files", "tag-cloud", "dataview", "dv-js", "backlinks", "random-note", "button", "label"]);
 function isContainerType(type) {
   return CONTAINER_TYPES.has(type);
@@ -399,7 +399,7 @@ var BaseWidget = class {
     container.empty();
     await this.renderContent(container, config);
     const type = this.getType();
-    const isLeaf = type !== "container-row" && type !== "container-col" && type !== "container-tab-h" && type !== "container-tab-v";
+    const isLeaf = !isContainerType(type);
     applyWidgetStyle(container, config, isLeaf);
     const style = config.style;
     let needsScope = false;
@@ -526,6 +526,7 @@ var translations = {
   "type-container-tab-v": { en: "Vertical Tabs", zh: "\u6807\u7B7E\u5782\u76F4\u6392\u5217" },
   "type-backlinks": { en: "Backlinks", zh: "\u53CD\u5411\u94FE\u63A5" },
   "type-random-note": { en: "Random Note", zh: "\u968F\u673A\u7B14\u8BB0" },
+  "type-container-freeform": { en: "Freeform", zh: "\u81EA\u7531\u5E03\u5C40" },
   "stats-total-notes": { en: "Total Notes", zh: "\u7B14\u8BB0\u603B\u6570" },
   "stats-today": { en: "Created Today", zh: "\u4ECA\u65E5\u65B0\u5EFA" },
   "stats-week": { en: "This Week", zh: "\u672C\u5468\u65B0\u5EFA" },
@@ -585,6 +586,13 @@ var translations = {
   "valign-middle": { en: "Middle", zh: "\u5C45\u4E2D\u5BF9\u9F50" },
   "valign-bottom": { en: "Bottom", zh: "\u4E0B\u5BF9\u9F50" },
   "align-stretch": { en: "Stretch", zh: "\u62C9\u4F38" },
+  "freeform-x": { en: "X", zh: "X" },
+  "freeform-y": { en: "Y", zh: "Y" },
+  "freeform-w": { en: "W", zh: "W" },
+  "freeform-h": { en: "H", zh: "H" },
+  "freeform-container-height": { en: "Container Height (px)", zh: "\u5BB9\u5668\u9AD8\u5EA6\uFF08px\uFF09" },
+  "freeform-preview": { en: "Layout Preview", zh: "\u5E03\u5C40\u9884\u89C8" },
+  "freeform-hint": { en: "Set a height for the container, otherwise it will collapse.", zh: "\u81EA\u7531\u5E03\u5C40\u9700\u8981\u8BBE\u7F6E\u9AD8\u5EA6\uFF0C\u5426\u5219\u5BB9\u5668\u4F1A\u584C\u9677\u3002" },
   "filter-title": { en: "Filter", zh: "\u7B5B\u9009" },
   "filter-add": { en: "Add Filter", zh: "\u6DFB\u52A0\u7B5B\u9009\u6761\u4EF6" },
   "filter-source": { en: "Source", zh: "\u6765\u6E90" },
@@ -1173,6 +1181,46 @@ var ContainerTabHWidget = class extends BaseContainerTabWidget {
 var ContainerTabVWidget = class extends BaseContainerTabWidget {
   getType() {
     return "container-tab-v";
+  }
+};
+
+// src/widgets/built-in/ContainerFreeform.ts
+var ContainerFreeformWidget = class extends BaseWidget {
+  getType() {
+    return "container-freeform";
+  }
+  async renderContent(container, config) {
+    const children = config.children ?? [];
+    if (!children.length) {
+      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
+      return;
+    }
+    container.addClass("xyw-container-freeform");
+    container.style.position = "relative";
+    container.style.overflow = "auto";
+    const positions = config.settings?.childPositions ?? {};
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const pos = positions[child.id ?? ""] ?? { x: 0, y: i * 25, w: 100, h: 25 };
+      const cell = container.createEl("div", { cls: "xyw-container-cell xyw-freeform-cell" });
+      cell.style.position = "absolute";
+      cell.style.left = pos.x + "%";
+      cell.style.top = pos.y + "%";
+      cell.style.width = pos.w + "%";
+      cell.style.height = pos.h + "%";
+      const widget = createWidget(child.type);
+      if (widget) {
+        await widget.render(cell, {
+          type: child.type,
+          title: child.title || "",
+          settings: child.settings,
+          children: child.children,
+          style: child.style,
+          filters: child.filters,
+          sourcePath: config.sourcePath
+        });
+      }
+    }
   }
 };
 
@@ -1865,6 +1913,8 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
     this.store = store;
     this.editId = editId;
     this.onSaved = onSaved;
+    this.freeformPositions = {};
+    this.freeformPreviewEl = null;
   }
   onOpen() {
     const { contentEl } = this;
@@ -1872,6 +1922,12 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
     contentEl.addClass("xyw-editor-modal");
     const existing = this.editId ? this.store.getWidget(this.editId) : null;
     const isNew = !existing;
+    if (existing?.settings?.childPositions) {
+      this.freeformPositions = JSON.parse(JSON.stringify(existing.settings.childPositions));
+    } else {
+      this.freeformPositions = {};
+    }
+    this.freeformPreviewEl = null;
     let name = existing?.name ?? "";
     let type = existing?.type ?? "container-row";
     let children = existing?.children ? [...existing.children] : [];
@@ -1894,41 +1950,58 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
         dd.setValue(type);
         dd.onChange((v) => {
           type = v;
+          if (type === "container-freeform") {
+            if (!editingStyle.height)
+              editingStyle.height = "400px";
+          }
           renderFull();
         });
       });
       const listEl = contentEl.createEl("div", { cls: "xyw-child-list" });
       const emptyEl = contentEl.createEl("p", { cls: "xyw-empty-state", text: t("msg-no-children") });
+      const isFreeform = type === "container-freeform";
       const refreshList = () => {
         listEl.empty();
         emptyEl.style.display = children.length ? "none" : "";
         for (let i = 0; i < children.length; i++) {
-          this.renderChildCard(listEl, children, i, refreshList);
+          this.renderChildCard(listEl, children, i, refreshList, isFreeform);
         }
       };
       refreshList();
+      if (type === "container-freeform") {
+        this.ensureFreeformPositions(children);
+        contentEl.createEl("h3", { text: t("freeform-preview") });
+        this.freeformPreviewEl = contentEl.createEl("div", { cls: "xyw-freeform-preview" });
+        const previewHeight = parseInt(editingStyle.height ?? "400") || 400;
+        this.renderFreeformPreview(this.freeformPreviewEl, children, previewHeight);
+      }
       const styleSection = contentEl.createEl("div", { cls: "xyw-style-section" });
       styleSection.createEl("h3", { text: t("style-content") });
-      new import_obsidian5.Setting(styleSection).setName(t("style-content-align")).addDropdown((dd) => {
-        dd.addOption("stretch", t("align-stretch"));
-        dd.addOption("left", t("style-align-left"));
-        dd.addOption("center", t("style-align-center"));
-        dd.addOption("right", t("style-align-right"));
-        dd.setValue(editingSettings.hAlign ?? "stretch");
-        dd.onChange((v) => {
-          editingSettings.hAlign = v;
+      if (type === "container-freeform") {
+        const hint = styleSection.createEl("div", { cls: "xyw-freeform-hint", text: t("freeform-hint") });
+      }
+      if (type !== "container-freeform") {
+        new import_obsidian5.Setting(styleSection).setName(t("style-content-align")).addDropdown((dd) => {
+          dd.addOption("stretch", t("align-stretch"));
+          dd.addOption("left", t("style-align-left"));
+          dd.addOption("center", t("style-align-center"));
+          dd.addOption("right", t("style-align-right"));
+          dd.setValue(editingSettings.hAlign ?? "stretch");
+          dd.onChange((v) => {
+            editingSettings.hAlign = v;
+          });
         });
-      });
-      new import_obsidian5.Setting(styleSection).setName(t("style-content-valign")).addDropdown((dd) => {
-        dd.addOption("stretch", t("align-stretch"));
-        dd.addOption("top", t("valign-top"));
-        dd.addOption("middle", t("valign-middle"));
-        dd.addOption("bottom", t("valign-bottom"));
-        dd.setValue(editingSettings.vAlign ?? "stretch");
-        dd.onChange((v) => {
-          editingSettings.vAlign = v;
+        new import_obsidian5.Setting(styleSection).setName(t("style-content-valign")).addDropdown((dd) => {
+          dd.addOption("stretch", t("align-stretch"));
+          dd.addOption("top", t("valign-top"));
+          dd.addOption("middle", t("valign-middle"));
+          dd.addOption("bottom", t("valign-bottom"));
+          dd.setValue(editingSettings.vAlign ?? "stretch");
+          dd.onChange((v) => {
+            editingSettings.vAlign = v;
+          });
         });
-      });
+      }
       new import_obsidian5.Setting(styleSection).setName(t("style-border-color")).addText((tc) => {
         tc.inputEl.type = "color";
         tc.setValue(editingStyle?.borderColor ?? "").onChange((v) => {
@@ -2065,7 +2138,11 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
         const data = { name: name.trim(), type, children };
         if (editingStyle && Object.keys(editingStyle).length > 0)
           data.style = editingStyle;
-        data.settings = editingSettings;
+        if (type === "container-freeform") {
+          data.settings = { ...editingSettings, childPositions: this.freeformPositions };
+        } else {
+          data.settings = editingSettings;
+        }
         if (isNew) {
           const saved = await this.store.addWidget(data);
           new import_obsidian5.Notice(t("btn-save"));
@@ -2081,7 +2158,7 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
     };
     renderFull();
   }
-  renderChildCard(listEl, children, index, onRefresh) {
+  renderChildCard(listEl, children, index, onRefresh, isFreeform) {
     const childId = children[index];
     const childDef = this.store.getWidget(childId);
     const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
@@ -2139,9 +2216,140 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
       }
     });
     new import_obsidian5.ButtonComponent(acts).setIcon("trash-2").setTooltip(t("btn-delete")).onClick(() => {
+      delete this.freeformPositions[childId];
       children.splice(index, 1);
       onRefresh();
     });
+    if (isFreeform && childDef) {
+      const pos = this.freeformPositions[childId] ?? { x: 0, y: index * 25, w: 100, h: 25 };
+      this.freeformPositions[childId] = pos;
+      const posRow = card.createEl("div", { cls: "xyw-freeform-pos-inputs" });
+      posRow.setAttribute("data-child-id", childId);
+      const createPosInput = (labelKey, key, min, max, defaultVal) => {
+        const lbl = posRow.createEl("label");
+        lbl.textContent = t(labelKey);
+        const inp = lbl.createEl("input", { type: "number", attr: { min: String(min), max: String(max) } });
+        inp.value = String(Math.round(pos[key]));
+        inp.addEventListener("change", () => {
+          const raw = inp.value === "" ? defaultVal : Number(inp.value);
+          pos[key] = Math.max(min, Math.min(max, raw));
+          inp.value = String(Math.round(pos[key]));
+          if (this.freeformPreviewEl)
+            this.renderFreeformPreview(this.freeformPreviewEl, children);
+        });
+        return inp;
+      };
+      createPosInput("freeform-x", "x", 0, 100, 0);
+      createPosInput("freeform-y", "y", 0, 100, 0);
+      createPosInput("freeform-w", "w", 5, 100, 100);
+      createPosInput("freeform-h", "h", 5, 100, 25);
+    }
+  }
+  ensureFreeformPositions(children) {
+    for (let i = 0; i < children.length; i++) {
+      const id = children[i];
+      if (!this.freeformPositions[id]) {
+        this.freeformPositions[id] = { x: 0, y: i * 25, w: 100, h: 25 };
+      }
+    }
+  }
+  renderFreeformPreview(previewEl, children, containerHeight) {
+    previewEl.empty();
+    if (!children.length)
+      return;
+    const height = containerHeight ?? (parseInt(previewEl.style.height) || 400);
+    previewEl.style.height = height + "px";
+    for (let i = 0; i < children.length; i++) {
+      const childId = children[i];
+      const childDef = this.store.getWidget(childId);
+      const pos = this.freeformPositions[childId] ?? { x: 0, y: i * 25, w: 100, h: 25 };
+      this.freeformPositions[childId] = pos;
+      const block = previewEl.createEl("div", { cls: "xyw-freeform-preview-block" });
+      block.textContent = childDef?.name ?? `#${i + 1}`;
+      this.updatePreviewBlockStyle(block, pos);
+      let dragData = null;
+      block.addEventListener("mousedown", (e) => {
+        if (e.target.hasClass("xyw-freeform-resize-handle"))
+          return;
+        e.preventDefault();
+        const cw = previewEl.clientWidth;
+        const ch = previewEl.clientHeight;
+        if (!cw || !ch)
+          return;
+        block.addClass("xyw-dragging");
+        dragData = {
+          startX: e.clientX,
+          startY: e.clientY,
+          origX: pos.x,
+          origY: pos.y,
+          origW: pos.w,
+          origH: pos.h
+        };
+        const onMove = (ev) => {
+          if (!dragData)
+            return;
+          const dx = (ev.clientX - dragData.startX) / cw * 100;
+          const dy = (ev.clientY - dragData.startY) / ch * 100;
+          pos.x = Math.max(0, Math.min(100 - pos.w, dragData.origX + dx));
+          pos.y = Math.max(0, Math.min(100 - pos.h, dragData.origY + dy));
+          this.updatePreviewBlockStyle(block, pos);
+          this.syncFreeformInputs(childId, pos);
+        };
+        const onUp = () => {
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+          block.removeClass("xyw-dragging");
+          dragData = null;
+        };
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      });
+      const resizeHandle = block.createEl("div", { cls: "xyw-freeform-resize-handle" });
+      resizeHandle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const cw = previewEl.clientWidth;
+        const ch = previewEl.clientHeight;
+        if (!cw || !ch)
+          return;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const origW = pos.w;
+        const origH = pos.h;
+        const onMove = (ev) => {
+          const dx = (ev.clientX - startX) / cw * 100;
+          const dy = (ev.clientY - startY) / ch * 100;
+          pos.w = Math.max(5, Math.min(100 - pos.x, origW + dx));
+          pos.h = Math.max(5, Math.min(100 - pos.y, origH + dy));
+          this.updatePreviewBlockStyle(block, pos);
+          this.syncFreeformInputs(childId, pos);
+        };
+        const onUp = () => {
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+        };
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      });
+    }
+  }
+  updatePreviewBlockStyle(block, pos) {
+    block.style.left = pos.x + "%";
+    block.style.top = pos.y + "%";
+    block.style.width = pos.w + "%";
+    block.style.height = pos.h + "%";
+  }
+  syncFreeformInputs(childId, pos) {
+    const posRow = this.contentEl.querySelector(`.xyw-freeform-pos-inputs[data-child-id="${childId}"]`);
+    if (!posRow)
+      return;
+    const inputs = posRow.querySelectorAll('input[type="number"]');
+    if (inputs.length >= 4) {
+      inputs[0].value = String(Math.round(pos.x));
+      inputs[1].value = String(Math.round(pos.y));
+      inputs[2].value = String(Math.round(pos.w));
+      inputs[3].value = String(Math.round(pos.h));
+    }
   }
   onClose() {
     this.contentEl.empty();
@@ -2766,6 +2974,12 @@ var WidgetPlugin = class extends import_obsidian9.Plugin {
         settingSchema: []
       },
       {
+        type: "container-freeform",
+        defaultTitle: t("type-container-freeform"),
+        description: "Free-form layout with absolute positioning",
+        settingSchema: []
+      },
+      {
         type: "backlinks",
         defaultTitle: t("type-backlinks"),
         description: "Show backlinks for the active file",
@@ -2949,10 +3163,11 @@ var WidgetPlugin = class extends import_obsidian9.Plugin {
       { ctor: ContainerColWidget, meta: metas[6] },
       { ctor: ContainerTabHWidget, meta: metas[7] },
       { ctor: ContainerTabVWidget, meta: metas[8] },
-      { ctor: BacklinksWidget, meta: metas[9] },
-      { ctor: RandomNoteWidget, meta: metas[10] },
-      { ctor: ButtonWidget, meta: metas[11] },
-      { ctor: LabelWidget, meta: metas[12] }
+      { ctor: ContainerFreeformWidget, meta: metas[9] },
+      { ctor: BacklinksWidget, meta: metas[10] },
+      { ctor: RandomNoteWidget, meta: metas[11] },
+      { ctor: ButtonWidget, meta: metas[12] },
+      { ctor: LabelWidget, meta: metas[13] }
     ];
     for (const { ctor, meta } of widgets) {
       registerWidgetType(ctor, meta);

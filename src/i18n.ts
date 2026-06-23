@@ -62,6 +62,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'type-container-tab-v': { en: 'Vertical Tabs', zh: '标签垂直排列' },
   'type-backlinks': { en: 'Backlinks', zh: '反向链接' },
   'type-random-note': { en: 'Random Note', zh: '随机笔记' },
+  'type-container-freeform': { en: 'Freeform', zh: '自由布局' },
 
   'stats-total-notes': { en: 'Total Notes', zh: '笔记总数' },
   'stats-today': { en: 'Created Today', zh: '今日新建' },
@@ -127,6 +128,13 @@ const translations: Record<string, Record<Lang, string>> = {
   'valign-middle': { en: 'Middle', zh: '居中对齐' },
   'valign-bottom': { en: 'Bottom', zh: '下对齐' },
   'align-stretch': { en: 'Stretch', zh: '拉伸' },
+  'freeform-x': { en: 'X', zh: 'X' },
+  'freeform-y': { en: 'Y', zh: 'Y' },
+  'freeform-w': { en: 'W', zh: 'W' },
+  'freeform-h': { en: 'H', zh: 'H' },
+  'freeform-container-height': { en: 'Container Height (px)', zh: '容器高度（px）' },
+  'freeform-preview': { en: 'Layout Preview', zh: '布局预览' },
+  'freeform-hint': { en: 'Set a height for the container, otherwise it will collapse.', zh: '自由布局需要设置高度，否则容器会塌陷。' },
 
   'filter-title': { en: 'Filter', zh: '筛选' },
   'filter-add': { en: 'Add Filter', zh: '添加筛选条件' },

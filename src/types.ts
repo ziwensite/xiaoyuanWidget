@@ -13,7 +13,8 @@ export type ContainerType =
   | 'container-row'
   | 'container-col'
   | 'container-tab-h'
-  | 'container-tab-v';
+  | 'container-tab-v'
+  | 'container-freeform';
 
 export type AnyWidgetType = WidgetType | ContainerType;
 
@@ -53,6 +54,7 @@ export interface FilterRule {
 
 export interface ChildWidgetConfig {
   name: string;
+  id?: string;
   title?: string;
   type: AnyWidgetType;
   settings: Record<string, unknown>;

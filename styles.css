@@ -320,6 +320,104 @@ button.xyw-edit-overlay:hover {
   background: var(--background-secondary-alt);
 }
 
+/* Freeform layout */
+.xyw-container-freeform {
+  min-height: 200px;
+  width: 100%;
+}
+
+.xyw-freeform-cell {
+  overflow: auto;
+}
+
+/* Freeform preview in editor modal */
+.xyw-freeform-preview {
+  position: relative;
+  width: 100%;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary-alt);
+  overflow: hidden;
+  user-select: none;
+  margin: 8px 0;
+}
+
+.xyw-freeform-preview-block {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  cursor: move;
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  transition: box-shadow 0.15s;
+}
+.xyw-freeform-preview-block:hover {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+  z-index: 2;
+}
+.xyw-freeform-preview-block.xyw-dragging {
+  opacity: 0.7;
+  z-index: 3;
+}
+
+.xyw-freeform-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+  background: var(--interactive-accent);
+  border-radius: 0 0 4px 0;
+  opacity: 0;
+  z-index: 5;
+}
+.xyw-freeform-preview-block:hover .xyw-freeform-resize-handle {
+  opacity: 1;
+}
+
+.xyw-freeform-pos-inputs {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.xyw-freeform-pos-inputs label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-muted);
+}
+.xyw-freeform-pos-inputs input {
+  width: 44px;
+  padding: 2px 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  text-align: center;
+  font-size: 12px;
+}
+
+.xyw-freeform-hint {
+  font-size: 12px;
+  color: var(--text-warning);
+  margin: 4px 0 8px;
+  padding: 4px 8px;
+  background: var(--background-secondary);
+  border-radius: 4px;
+}
+
 /* Horizontal tabs */
 .xyw-container-tab-h {
   min-height: 40px;
