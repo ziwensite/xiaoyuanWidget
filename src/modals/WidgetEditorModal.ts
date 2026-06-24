@@ -1,15 +1,21 @@
 import { App, Modal, Setting, Notice, ButtonComponent, Menu } from 'obsidian';
+import { FocusManager } from '../utils/FocusManager';
 import type WidgetPlugin from '../main';
 import { WidgetStore } from '../store/WidgetStore';
 import { t } from '../i18n';
-import { getAllWidgetMetas } from '../widgets/registry';
-import { WidgetDefinition, AnyWidgetType, WidgetStyle } from '../types';
-import { isContainerType } from './_shared';
+import { WidgetDefinition, WidgetStyle, TabPage, DEFAULT_CHILD_X, DEFAULT_CHILD_Y, DEFAULT_CHILD_W, DEFAULT_CHILD_H } from '../types';
 import { ChildEditorModal } from './ChildEditorModal';
 
 export class WidgetEditorModal extends Modal {
+  private tabs: TabPage[] = [];
+  private activeTabIdx = 0;
+  private showTabs = false;
+  private tabPosition = 'top';
   private freeformPositions: Record<string, { x: number; y: number; w: number; h: number }> = {};
   private freeformPreviewEl: HTMLElement | null = null;
+  private freeformAutoHeight = true;
+  private heightInputEl: HTMLInputElement | null = null;
+  private editingStyle: WidgetStyle = {};
 
   constructor(
     app: App,
@@ -29,101 +35,145 @@ export class WidgetEditorModal extends Modal {
     const existing = this.editId ? this.store.getWidget(this.editId) : null;
     const isNew = !existing;
 
-    // Initialize freeform positions from store
-    if (existing?.settings?.childPositions) {
-      this.freeformPositions = JSON.parse(JSON.stringify(existing.settings.childPositions));
+    // Initialize tabs from existing data
+    if (existing?.settings?.tabs) {
+      this.tabs = JSON.parse(JSON.stringify((existing.settings as any).tabs ?? []));
+      this.showTabs = (existing.settings as any).showTabs ?? false;
+      this.tabPosition = (existing.settings as any).tabPosition ?? 'top';
     } else {
-      this.freeformPositions = {};
+      const flatChildren = existing?.children ? [...existing.children] : [];
+      const flatPositions = existing?.settings?.childPositions
+        ? JSON.parse(JSON.stringify(existing.settings.childPositions))
+        : {};
+      this.tabs = [{ name: t('tab-default-name').replace('{n}', '1'), children: flatChildren, childPositions: flatPositions }];
+      this.showTabs = false;
+      this.tabPosition = 'top';
     }
-    this.freeformPreviewEl = null;
+    if (!this.tabs.length) {
+      this.tabs = [{ name: t('tab-default-name').replace('{n}', '1'), children: [], childPositions: {} }];
+    }
+    this.activeTabIdx = 0;
 
     let name = existing?.name ?? '';
-    let type: AnyWidgetType = (existing?.type as AnyWidgetType) ?? 'container-row';
-    let children: string[] = existing?.children ? [...existing.children] : [];
     let editingSettings: Record<string, any> = existing?.settings ? { ...existing.settings } : {};
     const editingStyle: WidgetStyle = existing?.style ? JSON.parse(JSON.stringify(existing.style)) : {};
+    this.editingStyle = editingStyle;
+    this.freeformAutoHeight = !editingStyle.height;
+
+    const saveActivePositions = () => {
+      if (this.tabs[this.activeTabIdx]) {
+        this.tabs[this.activeTabIdx].childPositions = JSON.parse(JSON.stringify(this.freeformPositions));
+      }
+    };
+
+    const syncPositionsFromTab = () => {
+      const p = this.tabs[this.activeTabIdx]?.childPositions;
+      this.freeformPositions = p ? JSON.parse(JSON.stringify(p)) : {};
+    };
+    syncPositionsFromTab();
 
     const renderFull = () => {
+      saveActivePositions();
       contentEl.empty();
       contentEl.addClass('xyw-editor-modal');
 
+      // Name
       new Setting(contentEl)
         .setName(t('label-name'))
-        .addText(tc => tc
-          .setValue(name)
-          .onChange(v => { name = v; }));
+        .addText(tc => tc.setValue(name).onChange(v => { name = v; }));
 
-      const headerRow = contentEl.createEl('div', { cls: 'xyw-section-header' });
-      headerRow.createEl('h3', { text: t('label-widget-list') });
-      new Setting(headerRow)
-        .setName(t('label-layout-type'))
-        .addDropdown(dd => {
-          for (const m of getAllWidgetMetas()) {
-            if (isContainerType(m.type)) {
-              dd.addOption(m.type, t(`type-${m.type}`));
-            }
-          }
-          dd.setValue(type);
-          dd.onChange(v => {
-            type = v as AnyWidgetType;
-            if (type === 'container-freeform') {
-              if (!editingStyle.height) editingStyle.height = '400px';
-            }
+      // Show tabs toggle
+      new Setting(contentEl)
+        .setName(t('label-show-tabs'))
+        .addToggle(tc => tc.setValue(this.showTabs).onChange(v => {
+          this.showTabs = v;
+          renderFull();
+        }));
+
+      if (this.showTabs) {
+        // Tab position dropdown
+        new Setting(contentEl)
+          .setName(t('label-tab-position'))
+          .addDropdown(dd => {
+            dd.addOption('top', t('tab-position-top'));
+            dd.addOption('left', t('tab-position-left'));
+            dd.addOption('right', t('tab-position-right'));
+            dd.addOption('bottom', t('tab-position-bottom'));
+            dd.setValue(this.tabPosition);
+            dd.onChange(v => { this.tabPosition = v; });
+          });
+
+        // Tab bar
+        const tabBarRow = contentEl.createEl('div', { cls: 'xyw-tab-editor-bar' });
+        for (let i = 0; i < this.tabs.length; i++) {
+          const tabBtn = tabBarRow.createEl('div', {
+            cls: `xyw-tab-editor-btn${i === this.activeTabIdx ? ' xyw-tab-editor-active' : ''}`,
+            text: this.tabs[i].name,
+          });
+          tabBtn.addEventListener('click', () => {
+            this.activeTabIdx = i;
+            syncPositionsFromTab();
             renderFull();
           });
-        });
+        }
+        new ButtonComponent(tabBarRow)
+          .setIcon('plus')
+          .setTooltip(t('btn-add-tab'))
+          .onClick(() => {
+            const n = this.tabs.length + 1;
+            this.tabs.push({ name: t('tab-default-name').replace('{n}', String(n)), children: [], childPositions: {} });
+            this.activeTabIdx = this.tabs.length - 1;
+            syncPositionsFromTab();
+            renderFull();
+          });
 
+        // Tab rename & delete buttons for active tab (if >1 tab)
+        if (this.tabs.length > 1) {
+          const tabActions = contentEl.createEl('div', { cls: 'xyw-tab-editor-actions' });
+          const activeTab = this.tabs[this.activeTabIdx];
+          new Setting(tabActions)
+            .setName(t('btn-rename'))
+            .addText(tc => tc.setValue(activeTab.name).onChange(v => {
+              activeTab.name = v;
+            }));
+          new ButtonComponent(tabActions)
+            .setButtonText(t('btn-delete'))
+            .onClick(() => {
+              this.tabs.splice(this.activeTabIdx, 1);
+              if (this.activeTabIdx >= this.tabs.length) this.activeTabIdx = this.tabs.length - 1;
+              syncPositionsFromTab();
+              renderFull();
+            });
+        }
+      }
+
+      // Child list for active tab
+      const children = this.tabs[this.activeTabIdx]?.children ?? [];
       const listEl = contentEl.createEl('div', { cls: 'xyw-child-list' });
       const emptyEl = contentEl.createEl('p', { cls: 'xyw-empty-state', text: t('msg-no-children') });
 
-      const isFreeform = type === 'container-freeform';
       const refreshList = () => {
         listEl.empty();
         emptyEl.style.display = children.length ? 'none' : '';
         for (let i = 0; i < children.length; i++) {
-          this.renderChildCard(listEl, children, i, refreshList, isFreeform);
+          this.renderChildCard(listEl, children, i, refreshList);
         }
       };
       refreshList();
 
-      // Freeform preview area
-      if (type === 'container-freeform') {
-        this.ensureFreeformPositions(children);
-        contentEl.createEl('h3', { text: t('freeform-preview') });
-        this.freeformPreviewEl = contentEl.createEl('div', { cls: 'xyw-freeform-preview' });
-        const previewHeight = parseInt(editingStyle.height ?? '400') || 400;
-        this.renderFreeformPreview(this.freeformPreviewEl, children, previewHeight);
-      }
+      // Freeform preview
+      contentEl.createEl('h3', { text: t('freeform-preview') });
+      this.freeformPreviewEl = contentEl.createEl('div', { cls: 'xyw-freeform-preview' });
+      const previewHeight = this.freeformAutoHeight
+        ? parseInt(this.calcFreeformHeight()) || 400
+        : parseInt(editingStyle.height ?? '400') || 400;
+      this.renderFreeformPreview(this.freeformPreviewEl, children, previewHeight);
 
+      // Style section
       const styleSection = contentEl.createEl('div', { cls: 'xyw-style-section' });
       styleSection.createEl('h3', { text: t('style-content') });
 
-      if (type === 'container-freeform') {
-        const hint = styleSection.createEl('div', { cls: 'xyw-freeform-hint', text: t('freeform-hint') });
-      }
-
-      if (type !== 'container-freeform') {
-        new Setting(styleSection)
-          .setName(t('style-content-align'))
-          .addDropdown(dd => {
-            dd.addOption('stretch', t('align-stretch'));
-            dd.addOption('left', t('style-align-left'));
-            dd.addOption('center', t('style-align-center'));
-            dd.addOption('right', t('style-align-right'));
-            dd.setValue(editingSettings.hAlign ?? 'stretch');
-            dd.onChange(v => { editingSettings.hAlign = v; });
-          });
-        new Setting(styleSection)
-          .setName(t('style-content-valign'))
-          .addDropdown(dd => {
-            dd.addOption('stretch', t('align-stretch'));
-            dd.addOption('top', t('valign-top'));
-            dd.addOption('middle', t('valign-middle'));
-            dd.addOption('bottom', t('valign-bottom'));
-            dd.setValue(editingSettings.vAlign ?? 'stretch');
-            dd.onChange(v => { editingSettings.vAlign = v; });
-          });
-      }
+      const hint = styleSection.createEl('div', { cls: 'xyw-freeform-hint', text: t('freeform-hint') });
 
       new Setting(styleSection)
         .setName(t('style-border-color'))
@@ -134,107 +184,82 @@ export class WidgetEditorModal extends Modal {
             if (editingStyle) editingStyle.borderColor = v;
           });
         });
-      const parseSize = (val: string | undefined) => {
-        if (!val) return { num: '', unit: 'px' };
-        const m = val.match(/^([\d.]+)\s*(px|%|em|rem|vw|vh)?$/);
-        return m ? { num: m[1], unit: m[2] || 'px' } : { num: val, unit: '' };
-      };
-      const wParsed = parseSize(editingStyle?.width);
-      new Setting(styleSection)
-        .setName(t('style-width'))
-        .addText(tc => {
-          tc.inputEl.type = 'number';
-          tc.inputEl.placeholder = 'auto';
-          tc.setValue(wParsed.num);
-          tc.onChange(v => {
-            if (!editingStyle) return;
-            const unit = (editingStyle.width ?? '').replace(/^[\d.]+/, '') || 'px';
-            editingStyle.width = v ? `${v}${unit}` : '';
-          });
-        })
-        .addDropdown(dd => {
-          const units = ['px', '%', 'em', 'rem', 'vw', 'vh'];
-          for (const u of units) dd.addOption(u, u);
-          dd.setValue(wParsed.unit);
-          dd.onChange(v => {
-            if (!editingStyle) return;
-            const num = (editingStyle.width ?? '').replace(/[^\d.]+/g, '');
-            editingStyle.width = num ? `${num}${v}` : '';
-          });
-        });
-      const hParsed = parseSize(editingStyle?.height);
+      const hParsed = (() => {
+        if (!editingStyle?.height) return { num: '', unit: 'px' };
+        const m = editingStyle.height.match(/^([\d.]+)\s*(px|%|em|rem|vw|vh)?$/);
+        return m ? { num: m[1], unit: m[2] || 'px' } : { num: editingStyle.height, unit: '' };
+      })();
+      this.heightInputEl = null;
       new Setting(styleSection)
         .setName(t('style-height'))
         .addText(tc => {
           tc.inputEl.type = 'number';
-          tc.inputEl.placeholder = 'auto';
-          tc.setValue(hParsed.num);
+          tc.inputEl.placeholder = this.freeformAutoHeight ? `auto (${this.calcFreeformHeight().replace(/px$/, '')})` : 'auto';
+          tc.setValue(this.freeformAutoHeight ? '' : hParsed.num);
+          this.heightInputEl = tc.inputEl;
           tc.onChange(v => {
             if (!editingStyle) return;
-            const unit = (editingStyle.height ?? '').replace(/^[\d.]+/, '') || 'px';
-            editingStyle.height = v ? `${v}${unit}` : '';
+            editingStyle.height = v ? `${v}px` : '';
+            this.freeformAutoHeight = !v;
+            if (this.freeformPreviewEl)
+              this.freeformPreviewEl.style.height = v ? `${v}px` : this.calcFreeformHeight();
+            if (!v && this.heightInputEl)
+              this.heightInputEl.placeholder = `auto (${this.calcFreeformHeight().replace(/px$/, '')})`;
           });
         })
         .addDropdown(dd => {
-          const units = ['px', '%', 'em', 'rem', 'vw', 'vh'];
-          for (const u of units) dd.addOption(u, u);
-          dd.setValue(hParsed.unit);
-          dd.onChange(v => {
+          dd.addOption('px', 'px');
+          dd.setValue('px');
+        });
+      new Setting(styleSection)
+        .setName(t('style-container-padding-right'))
+        .addText(tc => {
+          tc.inputEl.type = 'number';
+          tc.inputEl.placeholder = '0';
+          tc.setValue(editingStyle?.containerPaddingRight?.replace(/px$/, '') ?? '');
+          tc.onChange(v => {
             if (!editingStyle) return;
-            const num = (editingStyle.height ?? '').replace(/[^\d.]+/g, '');
-            editingStyle.height = num ? `${num}${v}` : '';
+            editingStyle.containerPaddingRight = v ? `${v}px` : '';
           });
+        })
+        .addDropdown(dd => {
+          dd.addOption('px', 'px');
+          dd.setValue('px');
         });
 
-      const setPad = (key: 'paddingTop' | 'paddingBottom' | 'paddingLeft' | 'paddingRight', label: string) => {
-        new Setting(styleSection)
-          .setName(label)
-          .addText(tc => {
-            tc.inputEl.type = 'number';
-            tc.inputEl.placeholder = '默认';
-            tc.setValue(((editingStyle as any)[key] ?? '').replace(/px$/, ''));
-            tc.onChange(v => {
-              (editingStyle as any)[key] = v ? `${v}px` : '';
-            });
-          });
-      };
-      setPad('paddingTop', t('style-padding-top') + '（px）');
-      setPad('paddingBottom', t('style-padding-bottom') + '（px）');
-      setPad('paddingLeft', t('style-padding-left') + '（px）');
-      setPad('paddingRight', t('style-padding-right') + '（px）');
-
+      // Bottom buttons
       const bottomRow = contentEl.createEl('div', { cls: 'xyw-bottom-row' });
       const leftGroup = bottomRow.createEl('div', { cls: 'xyw-bottom-left' });
       new ButtonComponent(leftGroup)
-        .setButtonText('新建')
+        .setButtonText(t('btn-new-widget'))
         .setCta()
         .onClick(async () => {
           const modal = new ChildEditorModal(this.app, this.store, null);
           const id = await modal.openAndGet();
-          if (id) { children.push(id); renderFull(); }
+          if (id) { children.push(id); refreshList(); renderFull(); }
         });
       new ButtonComponent(leftGroup)
-        .setButtonText('引用')
+        .setButtonText(t('btn-insert-ref'))
         .onClick((event) => {
           const leaves = this.store.getLeafWidgets();
-          if (leaves.length === 0) { new Notice('暂无叶子'); return; }
+          if (leaves.length === 0) { new Notice(t('msg-no-leaf-widgets')); return; }
           const menu = new Menu();
           for (const leaf of leaves) {
             menu.addItem((item) => {
               item.setTitle(`${leaf.name} (${t(`type-${leaf.type}`)})`);
               item.onClick(() => {
                 children.push(leaf.id);
-                renderFull();
+                refreshList(); renderFull();
               });
             });
           }
           menu.showAtMouseEvent(event);
         });
       new ButtonComponent(leftGroup)
-        .setButtonText('复制')
+        .setButtonText(t('btn-duplicate'))
         .onClick((event) => {
           const leaves = this.store.getLeafWidgets();
-          if (leaves.length === 0) { new Notice('暂无叶子'); return; }
+          if (leaves.length === 0) { new Notice(t('msg-no-leaf-widgets')); return; }
           const menu = new Menu();
           for (const leaf of leaves) {
             menu.addItem((item) => {
@@ -246,7 +271,7 @@ export class WidgetEditorModal extends Modal {
                   delete copy.id; delete copy.createdAt; delete copy.updatedAt;
                   const saved = await this.store.addWidget(copy);
                   children.push(saved.id);
-                  renderFull();
+                  refreshList(); renderFull();
                 }
               });
             });
@@ -259,14 +284,36 @@ export class WidgetEditorModal extends Modal {
         .setButtonText(t('btn-save'))
         .setCta()
         .onClick(async () => {
-          if (!name.trim()) { new Notice('Name is required'); return; }
-          const data: any = { name: name.trim(), type, children };
-          if (editingStyle && Object.keys(editingStyle).length > 0) data.style = editingStyle;
-          if (type === 'container-freeform') {
-            data.settings = { ...editingSettings, childPositions: this.freeformPositions };
-          } else {
-            data.settings = editingSettings;
+          if (!name.trim()) { new Notice(t('msg-name-required')); return; }
+
+          // Flatten children from all tabs for the top-level children field
+          const allChildren: string[] = [];
+          for (const tab of this.tabs) {
+            for (const cid of tab.children) {
+              if (!allChildren.includes(cid)) allChildren.push(cid);
+            }
           }
+
+          // Save positions back to active tab
+          const activeTab = this.tabs[this.activeTabIdx];
+          activeTab.childPositions = JSON.parse(JSON.stringify(this.freeformPositions));
+
+          const data: any = {
+            name: name.trim(),
+            type: 'container',
+            children: allChildren,
+            settings: {
+              ...editingSettings,
+              showTabs: this.showTabs,
+              tabPosition: this.tabPosition,
+              tabs: this.tabs,
+              _freeformVersion: 2,
+            },
+          };
+          const styleToSave = editingStyle ? { ...editingStyle } : undefined;
+          if (styleToSave && this.freeformAutoHeight) delete styleToSave.height;
+          if (styleToSave && Object.keys(styleToSave).length > 0) data.style = styleToSave;
+
           if (isNew) {
             const saved = await this.store.addWidget(data);
             new Notice(t('btn-save'));
@@ -285,7 +332,9 @@ export class WidgetEditorModal extends Modal {
     renderFull();
   }
 
-  private renderChildCard(listEl: HTMLElement, children: string[], index: number, onRefresh: () => void, isFreeform?: boolean): void {
+  // ── Child card rendering ──
+
+  private renderChildCard(listEl: HTMLElement, children: string[], index: number, onRefresh: () => void): void {
     const childId = children[index];
     const childDef = this.store.getWidget(childId);
     const card = listEl.createEl('div', { cls: 'xyw-child-card-simple' });
@@ -336,6 +385,18 @@ export class WidgetEditorModal extends Modal {
           delete copy.id; delete copy.createdAt; delete copy.updatedAt;
           this.store.addWidget(copy).then(saved => {
             children.splice(index + 1, 0, saved.id);
+            const origPos = this.freeformPositions[childDef.id];
+            if (origPos) {
+              const pw = this.freeformPreviewEl?.clientWidth ?? 600;
+              const ph = this.freeformPreviewEl?.clientHeight ?? 400;
+              const origWpx = (origPos.w / 100) * pw;
+              this.freeformPositions[saved.id] = {
+                x: Math.min(pw - origWpx, origPos.x + 20),
+                y: Math.min(ph - origPos.h, origPos.y + 20),
+                w: origPos.w,
+                h: origPos.h,
+              };
+            }
             onRefresh();
           });
         }
@@ -359,55 +420,126 @@ export class WidgetEditorModal extends Modal {
         onRefresh();
       });
 
-    // Position inputs for freeform
-    if (isFreeform && childDef) {
-      const pos = this.freeformPositions[childId] ?? { x: 0, y: index * 25, w: 100, h: 25 };
+    // Position inputs
+    if (childDef) {
+      const pos = this.freeformPositions[childId] ?? { x: DEFAULT_CHILD_X, y: DEFAULT_CHILD_Y, w: DEFAULT_CHILD_W, h: DEFAULT_CHILD_H };
       this.freeformPositions[childId] = pos;
 
       const posRow = card.createEl('div', { cls: 'xyw-freeform-pos-inputs' });
       posRow.setAttribute('data-child-id', childId);
+
+      const UNIT = { x: 'px', y: 'px', w: '%', h: 'px' };
 
       const createPosInput = (labelKey: string, key: 'x' | 'y' | 'w' | 'h', min: number, max: number, defaultVal: number) => {
         const lbl = posRow.createEl('label');
         lbl.textContent = t(labelKey);
         const inp = lbl.createEl('input', { type: 'number', attr: { min: String(min), max: String(max) } });
         inp.value = String(Math.round(pos[key]));
-        inp.addEventListener('change', () => {
+        lbl.createSpan({ text: UNIT[key] });
+        inp.addEventListener('input', () => {
           const raw = inp.value === '' ? defaultVal : Number(inp.value);
           pos[key] = Math.max(min, Math.min(max, raw));
+          const children = this.tabs[this.activeTabIdx]?.children ?? [];
+          const pw = this.freeformPreviewEl?.clientWidth ?? 600;
+          const ph = this.freeformPreviewEl?.clientHeight ?? 400;
+          this.resolveOverlap(childId, pos, children, pw, ph);
           inp.value = String(Math.round(pos[key]));
           if (this.freeformPreviewEl) this.renderFreeformPreview(this.freeformPreviewEl, children);
+          this.syncFreeformHeight();
         });
         return inp;
       };
 
-      createPosInput('freeform-x', 'x', 0, 100, 0);
-      createPosInput('freeform-y', 'y', 0, 100, 0);
-      createPosInput('freeform-w', 'w', 5, 100, 100);
-      createPosInput('freeform-h', 'h', 5, 100, 25);
+      createPosInput('freeform-x', 'x', 0, 99999, 10);
+      createPosInput('freeform-y', 'y', 0, 99999, 10);
+      createPosInput('freeform-w', 'w', 0, 100, 100);
+      createPosInput('freeform-h', 'h', 0, 99999, 15);
     }
   }
 
-  private ensureFreeformPositions(children: string[]): void {
-    for (let i = 0; i < children.length; i++) {
-      const id = children[i];
+  // ── Overlap / position utilities ──
+
+  private overlaps(
+    a: { x: number; y: number; w: number; h: number },
+    b: { x: number; y: number; w: number; h: number },
+    cw: number
+  ): boolean {
+    const aw = (a.w / 100) * cw;
+    const bw = (b.w / 100) * cw;
+    return a.x < b.x + bw && a.x + aw > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  private resolveOverlap(
+    selfId: string,
+    pos: { x: number; y: number; w: number; h: number },
+    children: string[],
+    cw: number,
+    ch: number
+  ): void {
+    for (let iter = 0; iter < 5; iter++) {
+      let anyOverlap = false;
+      for (const childId of children) {
+        if (childId === selfId) continue;
+        const cp = this.freeformPositions[childId];
+        if (!cp) continue;
+        if (!this.overlaps(pos, cp, cw)) continue;
+        anyOverlap = true;
+
+        const cpw = (cp.w / 100) * cw;
+        const pw = (pos.w / 100) * cw;
+
+        const rightX = cp.x + cpw;
+        if (rightX + pw <= cw) {
+          pos.x = rightX;
+          continue;
+        }
+
+        const leftX = cp.x - pw;
+        if (leftX >= 0) {
+          pos.x = leftX;
+          continue;
+        }
+
+        const downY = cp.y + cp.h;
+        pos.y = downY;
+
+        if (pos.x + pw > cw) {
+          pos.w = ((cw - pos.x) / cw) * 100;
+        }
+      }
+      if (!anyOverlap) break;
+    }
+  }
+
+  private ensurePositions(children: string[]): void {
+    for (const id of children) {
       if (!this.freeformPositions[id]) {
-        this.freeformPositions[id] = { x: 0, y: i * 25, w: 100, h: 25 };
+        this.freeformPositions[id] = { x: DEFAULT_CHILD_X, y: DEFAULT_CHILD_Y, w: DEFAULT_CHILD_W, h: DEFAULT_CHILD_H };
       }
     }
+  }
+
+  private calcFreeformHeight(): string {
+    const positions = Object.values(this.freeformPositions);
+    if (!positions.length) return '400px';
+    const maxBottom = Math.max(...positions.map(p => p.y + p.h));
+    if (maxBottom <= 0) return '400px';
+    const height = Math.max(10, Math.ceil(maxBottom));
+    return `${height}px`;
   }
 
   private renderFreeformPreview(previewEl: HTMLElement, children: string[], containerHeight?: number): void {
     previewEl.empty();
     if (!children.length) return;
 
+    this.ensurePositions(children);
     const height = containerHeight ?? (parseInt(previewEl.style.height) || 400);
     previewEl.style.height = height + 'px';
 
     for (let i = 0; i < children.length; i++) {
       const childId = children[i];
       const childDef = this.store.getWidget(childId);
-      const pos = this.freeformPositions[childId] ?? { x: 0, y: i * 25, w: 100, h: 25 };
+      const pos = this.freeformPositions[childId] ?? { x: DEFAULT_CHILD_X, y: DEFAULT_CHILD_Y, w: DEFAULT_CHILD_W, h: DEFAULT_CHILD_H };
       this.freeformPositions[childId] = pos;
 
       const block = previewEl.createEl('div', { cls: 'xyw-freeform-preview-block' });
@@ -426,33 +558,39 @@ export class WidgetEditorModal extends Modal {
 
         block.addClass('xyw-dragging');
         dragData = {
-          startX: e.clientX,
-          startY: e.clientY,
-          origX: pos.x,
-          origY: pos.y,
-          origW: pos.w,
-          origH: pos.h,
+          startX: e.clientX, startY: e.clientY,
+          origX: pos.x, origY: pos.y, origW: pos.w, origH: pos.h,
         };
 
         const onMove = (ev: MouseEvent) => {
           if (!dragData) return;
-          const dx = ((ev.clientX - dragData.startX) / cw) * 100;
-          const dy = ((ev.clientY - dragData.startY) / ch) * 100;
-          pos.x = Math.max(0, Math.min(100 - pos.w, dragData.origX + dx));
-          pos.y = Math.max(0, Math.min(100 - pos.h, dragData.origY + dy));
+          const dx = ev.clientX - dragData.startX;
+          const dy = ev.clientY - dragData.startY;
+          pos.x = Math.max(0, Math.min(cw - (pos.w / 100) * cw, dragData.origX + dx));
+          pos.y = Math.max(0, Math.min(ch - pos.h, dragData.origY + dy));
+          this.resolveOverlap(childId, pos, children, cw, ch);
+          dragData.origX = pos.x;
+          dragData.origY = pos.y;
+          dragData.startX = ev.clientX;
+          dragData.startY = ev.clientY;
           this.updatePreviewBlockStyle(block, pos);
           this.syncFreeformInputs(childId, pos);
+          this.syncFreeformHeight();
         };
 
-        const onUp = () => {
+        const onUp = () => { cleanUp(); };
+
+        const cleanUp = () => {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          window.removeEventListener('blur', cleanUp);
           block.removeClass('xyw-dragging');
           dragData = null;
         };
 
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
+        window.addEventListener('blur', cleanUp);
       });
 
       // Resize handle
@@ -464,36 +602,60 @@ export class WidgetEditorModal extends Modal {
         const ch = previewEl.clientHeight;
         if (!cw || !ch) return;
 
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const origW = pos.w;
-        const origH = pos.h;
+        let startX = e.clientX, startY = e.clientY;
+        let origW = pos.w, origH = pos.h;
 
         const onMove = (ev: MouseEvent) => {
-          const dx = ((ev.clientX - startX) / cw) * 100;
-          const dy = ((ev.clientY - startY) / ch) * 100;
-          pos.w = Math.max(5, Math.min(100 - pos.x, origW + dx));
-          pos.h = Math.max(5, Math.min(100 - pos.y, origH + dy));
+          const dw = ((ev.clientX - startX) / cw) * 100;
+          const dy = ev.clientY - startY;
+          pos.w = Math.max(0, Math.min(100 - (pos.x / cw) * 100, origW + dw));
+          pos.h = Math.max(0, Math.min(ch - pos.y, origH + dy));
+          for (const otherId of children) {
+            if (otherId === childId) continue;
+            const cp = this.freeformPositions[otherId];
+            if (!cp || !this.overlaps(pos, cp, cw)) continue;
+            if (pos.x < cp.x) pos.w = Math.min(pos.w, ((cp.x - pos.x) / cw) * 100);
+            if (pos.y < cp.y) pos.h = Math.min(pos.h, cp.y - pos.y);
+          }
+          pos.w = Math.max(0, pos.w);
+          pos.h = Math.max(0, pos.h);
+          origW = pos.w;
+          origH = pos.h;
+          startX = ev.clientX;
+          startY = ev.clientY;
           this.updatePreviewBlockStyle(block, pos);
           this.syncFreeformInputs(childId, pos);
+          this.syncFreeformHeight();
         };
 
-        const onUp = () => {
+        const onUp = () => { cleanUp(); };
+
+        const cleanUp = () => {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          window.removeEventListener('blur', cleanUp);
         };
 
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
+        window.addEventListener('blur', cleanUp);
       });
     }
   }
 
   private updatePreviewBlockStyle(block: HTMLElement, pos: { x: number; y: number; w: number; h: number }): void {
-    block.style.left = pos.x + '%';
-    block.style.top = pos.y + '%';
+    block.style.left = pos.x + 'px';
+    block.style.top = pos.y + 'px';
     block.style.width = pos.w + '%';
-    block.style.height = pos.h + '%';
+    block.style.height = pos.h + 'px';
+  }
+
+  private syncFreeformHeight(): void {
+    if (!this.freeformAutoHeight) return;
+    const height = this.calcFreeformHeight();
+    const num = height.replace(/px$/, '');
+    if (this.heightInputEl) this.heightInputEl.placeholder = `auto (${num})`;
+    if (this.freeformPreviewEl) this.freeformPreviewEl.style.height = height;
   }
 
   private syncFreeformInputs(childId: string, pos: { x: number; y: number; w: number; h: number }): void {
@@ -509,6 +671,7 @@ export class WidgetEditorModal extends Modal {
   }
 
   onClose(): void {
+    FocusManager.restoreEditorFocus(this.app);
     this.contentEl.empty();
   }
 }

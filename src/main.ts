@@ -6,10 +6,7 @@ import { RecentFilesWidget } from './widgets/built-in/RecentFiles';
 import { TagCloudWidget } from './widgets/built-in/TagCloud';
 import { DataviewWidget } from './widgets/built-in/Dataview';
 import { DataviewJSWidget } from './widgets/built-in/DataviewJS';
-import { ContainerRowWidget } from './widgets/built-in/ContainerRow';
-import { ContainerColWidget } from './widgets/built-in/ContainerCol';
-import { ContainerTabHWidget, ContainerTabVWidget } from './widgets/built-in/ContainerTab';
-import { ContainerFreeformWidget } from './widgets/built-in/ContainerFreeform';
+import { ContainerWidget } from './widgets/built-in/Container';
 import { BacklinksWidget } from './widgets/built-in/Backlinks';
 import { RandomNoteWidget } from './widgets/built-in/RandomNote';
 import { ButtonWidget } from './widgets/built-in/Button';
@@ -49,6 +46,7 @@ export default class WidgetPlugin extends Plugin {
     this.renderer = new CodeBlockRenderer(this.store, this);
 
     this.migrateLegacyTypes();
+    await this.migrateContainerData();
     this.registerWidgetTypes();
     this.registerCodeBlockProcessor();
     this.registerContextMenu();
@@ -61,314 +59,303 @@ export default class WidgetPlugin extends Plugin {
   }
 
   private registerWidgetTypes(): void {
-    const metas: WidgetMeta[] = [
+    const widgetRegistrations: { ctor: new () => any; meta: WidgetMeta }[] = [
       {
-        type: 'stats-card',
-        defaultTitle: t('type-stats-card'),
-        description: 'Display vault statistics as a card',
-        settingSchema: [
-          {
-            key: 'dimension',
-            labelKey: 'config-dimension',
-            type: 'select',
-            defaultValue: 'total',
-            options: [
-              { label: t('stats-total-notes'), value: 'total' },
-              { label: t('stats-today'), value: 'today' },
-              { label: t('stats-week'), value: 'week' },
-            ],
-          },
-          {
-            key: 'showLabel',
-            labelKey: 'config-stats-show-label',
-            type: 'select',
-            defaultValue: 'show',
-            options: [
-              { label: t('label-show'), value: 'show' },
-              { label: t('label-hide'), value: 'hide' },
-            ],
-          },
-        ],
+        ctor: StatsCardWidget,
+        meta: {
+          type: 'stats-card',
+          defaultTitle: t('type-stats-card'),
+          description: 'Display vault statistics as a card',
+          settingSchema: [
+            {
+              key: 'dimension',
+              labelKey: 'config-dimension',
+              type: 'select',
+              defaultValue: 'total',
+              options: [
+                { label: t('stats-total-notes'), value: 'total' },
+                { label: t('stats-today'), value: 'today' },
+                { label: t('stats-week'), value: 'week' },
+              ],
+            },
+            {
+              key: 'showLabel',
+              labelKey: 'config-stats-show-label',
+              type: 'select',
+              defaultValue: 'show',
+              options: [
+                { label: t('label-show'), value: 'show' },
+                { label: t('label-hide'), value: 'hide' },
+              ],
+            },
+          ],
+        },
       },
       {
-        type: 'recent-files',
-        defaultTitle: t('type-recent-files'),
-        description: 'List recently modified files',
-        settingSchema: [
-          {
-            key: 'limit',
-            labelKey: 'config-limit',
-            type: 'number',
-            defaultValue: 10,
-            placeholder: '10',
-          },
-        ],
+        ctor: RecentFilesWidget,
+        meta: {
+          type: 'recent-files',
+          defaultTitle: t('type-recent-files'),
+          description: 'List recently modified files',
+          settingSchema: [
+            {
+              key: 'limit',
+              labelKey: 'config-limit',
+              type: 'number',
+              defaultValue: 10,
+              placeholder: '10',
+            },
+          ],
+        },
       },
       {
-        type: 'tag-cloud',
-        defaultTitle: t('type-tag-cloud'),
-        description: 'Display tags as a cloud',
-        settingSchema: [
-          {
-            key: 'minCount',
-            labelKey: 'config-min-count',
-            type: 'number',
-            defaultValue: 1,
-            placeholder: '1',
-          },
-        ],
+        ctor: TagCloudWidget,
+        meta: {
+          type: 'tag-cloud',
+          defaultTitle: t('type-tag-cloud'),
+          description: 'Display tags as a cloud',
+          settingSchema: [
+            {
+              key: 'minCount',
+              labelKey: 'config-min-count',
+              type: 'number',
+              defaultValue: 1,
+              placeholder: '1',
+            },
+          ],
+        },
       },
       {
-        type: 'dataview',
-        defaultTitle: t('type-dataview'),
-        description: 'Execute a Dataview DQL query (auto-detect table/list/task)',
-        settingSchema: [
-          {
-            key: 'query',
-            labelKey: 'config-query',
-            type: 'textarea',
-            defaultValue: '',
-            placeholder: 'TABLE file.ctime FROM ""',
-          },
-        ],
+        ctor: DataviewWidget,
+        meta: {
+          type: 'dataview',
+          defaultTitle: t('type-dataview'),
+          description: 'Execute a Dataview DQL query (auto-detect table/list/task)',
+          settingSchema: [
+            {
+              key: 'query',
+              labelKey: 'config-query',
+              type: 'textarea',
+              defaultValue: '',
+              placeholder: 'TABLE file.ctime FROM ""',
+            },
+          ],
+        },
       },
       {
-        type: 'dv-js',
-        defaultTitle: t('type-dv-js'),
-        description: 'Execute custom JavaScript with Dataview API',
-        settingSchema: [
-          {
-            key: 'code',
-            labelKey: 'config-js-code',
-            type: 'textarea',
-            defaultValue: '',
-            placeholder: 'dv.paragraph("Hello from DataviewJS!")',
-          },
-        ],
+        ctor: DataviewJSWidget,
+        meta: {
+          type: 'dv-js',
+          defaultTitle: t('type-dv-js'),
+          description: 'Execute custom JavaScript with Dataview API',
+          settingSchema: [
+            {
+              key: 'code',
+              labelKey: 'config-js-code',
+              type: 'textarea',
+              defaultValue: '',
+              placeholder: 'dv.paragraph("Hello from DataviewJS!")',
+            },
+          ],
+        },
       },
       {
-        type: 'container-row',
-        defaultTitle: t('type-container-row'),
-        description: 'Arrange child widgets in a horizontal row',
-        settingSchema: [],
+        ctor: ContainerWidget,
+        meta: {
+          type: 'container',
+          defaultTitle: t('type-container'),
+          description: 'Container with optional tab bar and freeform layout',
+          settingSchema: [],
+        },
       },
       {
-        type: 'container-col',
-        defaultTitle: t('type-container-col'),
-        description: 'Arrange child widgets in a vertical column',
-        settingSchema: [],
+        ctor: BacklinksWidget,
+        meta: {
+          type: 'backlinks',
+          defaultTitle: t('type-backlinks'),
+          description: 'Show backlinks for the active file',
+          settingSchema: [],
+        },
       },
       {
-        type: 'container-tab-h',
-        defaultTitle: t('type-container-tab-h'),
-        description: 'Arrange child widgets as horizontal tabs',
-        settingSchema: [],
+        ctor: RandomNoteWidget,
+        meta: {
+          type: 'random-note',
+          defaultTitle: t('type-random-note'),
+          description: 'Open a random note',
+          settingSchema: [],
+        },
       },
       {
-        type: 'container-tab-v',
-        defaultTitle: t('type-container-tab-v'),
-        description: 'Arrange child widgets as vertical tabs',
-        settingSchema: [],
+        ctor: ButtonWidget,
+        meta: {
+          type: 'button',
+          defaultTitle: t('type-button'),
+          description: 'A clickable button that executes a command or opens a note',
+          settingSchema: [
+            {
+              key: 'buttonText',
+              labelKey: 'config-button-text',
+              type: 'text',
+              defaultValue: 'Button',
+              placeholder: 'Button',
+            },
+            {
+              key: 'buttonStyle',
+              labelKey: 'config-button-style',
+              type: 'select',
+              defaultValue: 'default',
+              options: [
+                { label: t('btn-style-default'), value: 'default' },
+                { label: t('btn-style-primary'), value: 'primary' },
+                { label: t('btn-style-outline'), value: 'outline' },
+                { label: t('btn-style-ghost'), value: 'ghost' },
+                { label: t('btn-style-danger'), value: 'danger' },
+                { label: t('btn-style-custom'), value: 'custom' },
+              ],
+            },
+            {
+              key: 'cssClass',
+              labelKey: 'config-css-class',
+              type: 'textarea',
+              defaultValue: '',
+              placeholder: 'my-btn my-style',
+              dependsOn: { field: 'buttonStyle', values: ['custom'] },
+            },
+            {
+              key: 'icon',
+              labelKey: 'config-icon',
+              type: 'select',
+              defaultValue: '',
+              options: [
+                { label: t('icon-none'), value: '' },
+                ...COMMON_ICONS.map(v => ({ label: v, value: v })),
+                { label: t('icon-custom'), value: '__custom__' },
+              ],
+            },
+            {
+              key: 'customIcon',
+              labelKey: 'config-custom-icon',
+              type: 'text',
+              defaultValue: '',
+              placeholder: 'custom lucide icon name',
+              dependsOn: { field: 'icon', values: ['__custom__'] },
+            },
+            {
+              key: 'actionType',
+              labelKey: 'config-action-type',
+              type: 'select',
+              defaultValue: 'command',
+              options: [
+                { label: t('action-command'), value: 'command' },
+                { label: t('action-open-note'), value: 'open-note' },
+              ],
+            },
+            {
+              key: 'command',
+              labelKey: 'config-command-id',
+              type: 'text',
+              defaultValue: '',
+              placeholder: 'app:open-vault',
+              dependsOn: { field: 'actionType', values: ['command'] },
+            },
+            {
+              key: 'notePath',
+              labelKey: 'config-note-path',
+              type: 'text',
+              defaultValue: '',
+              placeholder: 'folder/note.md',
+              dependsOn: { field: 'actionType', values: ['open-note'] },
+            },
+          ],
+        },
       },
       {
-        type: 'container-freeform',
-        defaultTitle: t('type-container-freeform'),
-        description: 'Free-form layout with absolute positioning',
-        settingSchema: [],
-      },
-      {
-        type: 'backlinks',
-        defaultTitle: t('type-backlinks'),
-        description: 'Show backlinks for the active file',
-        settingSchema: [],
-      },
-      {
-        type: 'random-note',
-        defaultTitle: t('type-random-note'),
-        description: 'Open a random note',
-        settingSchema: [],
-      },
-      {
-        type: 'button',
-        defaultTitle: t('type-button'),
-        description: 'A clickable button that executes a command or opens a note',
-        settingSchema: [
-          {
-            key: 'buttonText',
-            labelKey: 'config-button-text',
-            type: 'text',
-            defaultValue: 'Button',
-            placeholder: 'Button',
-          },
-          {
-            key: 'buttonStyle',
-            labelKey: 'config-button-style',
-            type: 'select',
-            defaultValue: 'default',
-            options: [
-              { label: t('btn-style-default'), value: 'default' },
-              { label: t('btn-style-primary'), value: 'primary' },
-              { label: t('btn-style-outline'), value: 'outline' },
-              { label: t('btn-style-ghost'), value: 'ghost' },
-              { label: t('btn-style-danger'), value: 'danger' },
-              { label: t('btn-style-custom'), value: 'custom' },
-            ],
-          },
-          {
-            key: 'cssClass',
-            labelKey: 'config-css-class',
-            type: 'textarea',
-            defaultValue: '',
-            placeholder: 'my-btn my-style',
-            dependsOn: { field: 'buttonStyle', values: ['custom'] },
-          },
-          {
-            key: 'icon',
-            labelKey: 'config-icon',
-            type: 'select',
-            defaultValue: '',
-            options: [
-              { label: t('icon-none'), value: '' },
-              ...COMMON_ICONS.map(v => ({ label: v, value: v })),
-              { label: t('icon-custom'), value: '__custom__' },
-            ],
-          },
-          {
-            key: 'customIcon',
-            labelKey: 'config-custom-icon',
-            type: 'text',
-            defaultValue: '',
-            placeholder: 'custom lucide icon name',
-            dependsOn: { field: 'icon', values: ['__custom__'] },
-          },
-          {
-            key: 'actionType',
-            labelKey: 'config-action-type',
-            type: 'select',
-            defaultValue: 'command',
-            options: [
-              { label: t('action-command'), value: 'command' },
-              { label: t('action-open-note'), value: 'open-note' },
-            ],
-          },
-          {
-            key: 'command',
-            labelKey: 'config-command-id',
-            type: 'text',
-            defaultValue: '',
-            placeholder: 'app:open-vault',
-            dependsOn: { field: 'actionType', values: ['command'] },
-          },
-          {
-            key: 'notePath',
-            labelKey: 'config-note-path',
-            type: 'text',
-            defaultValue: '',
-            placeholder: 'folder/note.md',
-            dependsOn: { field: 'actionType', values: ['open-note'] },
-          },
-        ],
-      },
-      {
-        type: 'label',
-        defaultTitle: t('type-label'),
-        description: 'A text label that can execute a command or open a note on click',
-        settingSchema: [
-          {
-            key: 'text',
-            labelKey: 'config-label-text',
-            type: 'textarea',
-            defaultValue: 'Label',
-            placeholder: 'Label text',
-          },
-          {
-            key: 'labelStyle',
-            labelKey: 'config-label-style',
-            type: 'select',
-            defaultValue: 'default',
-            options: [
-              { label: t('label-style-default'), value: 'default' },
-              { label: t('label-style-heading'), value: 'heading' },
-              { label: t('label-style-tag'), value: 'tag' },
-              { label: t('label-style-link'), value: 'link' },
-              { label: t('label-style-custom'), value: 'custom' },
-            ],
-          },
-          {
-            key: 'cssClass',
-            labelKey: 'config-css-class',
-            type: 'textarea',
-            defaultValue: '',
-            placeholder: 'my-label my-style',
-            dependsOn: { field: 'labelStyle', values: ['custom'] },
-          },
-          {
-            key: 'icon',
-            labelKey: 'config-icon',
-            type: 'select',
-            defaultValue: '',
-            options: [
-              { label: t('icon-none'), value: '' },
-              ...COMMON_ICONS.map(v => ({ label: v, value: v })),
-              { label: t('icon-custom'), value: '__custom__' },
-            ],
-          },
-          {
-            key: 'customIcon',
-            labelKey: 'config-custom-icon',
-            type: 'text',
-            defaultValue: '',
-            placeholder: 'custom lucide icon name',
-            dependsOn: { field: 'icon', values: ['__custom__'] },
-          },
-          {
-            key: 'actionType',
-            labelKey: 'config-action-type',
-            type: 'select',
-            defaultValue: 'command',
-            options: [
-              { label: t('action-command'), value: 'command' },
-              { label: t('action-open-note'), value: 'open-note' },
-            ],
-          },
-          {
-            key: 'command',
-            labelKey: 'config-command-id',
-            type: 'text',
-            defaultValue: '',
-            placeholder: 'app:open-vault',
-            dependsOn: { field: 'actionType', values: ['command'] },
-          },
-          {
-            key: 'notePath',
-            labelKey: 'config-note-path',
-            type: 'text',
-            defaultValue: '',
-            placeholder: 'folder/note.md',
-            dependsOn: { field: 'actionType', values: ['open-note'] },
-          },
-        ],
+        ctor: LabelWidget,
+        meta: {
+          type: 'label',
+          defaultTitle: t('type-label'),
+          description: 'A text label that can execute a command or open a note on click',
+          settingSchema: [
+            {
+              key: 'text',
+              labelKey: 'config-label-text',
+              type: 'textarea',
+              defaultValue: 'Label',
+              placeholder: 'Label text',
+            },
+            {
+              key: 'labelStyle',
+              labelKey: 'config-label-style',
+              type: 'select',
+              defaultValue: 'default',
+              options: [
+                { label: t('label-style-default'), value: 'default' },
+                { label: t('label-style-heading'), value: 'heading' },
+                { label: t('label-style-tag'), value: 'tag' },
+                { label: t('label-style-link'), value: 'link' },
+                { label: t('label-style-custom'), value: 'custom' },
+              ],
+            },
+            {
+              key: 'cssClass',
+              labelKey: 'config-css-class',
+              type: 'textarea',
+              defaultValue: '',
+              placeholder: 'my-label my-style',
+              dependsOn: { field: 'labelStyle', values: ['custom'] },
+            },
+            {
+              key: 'icon',
+              labelKey: 'config-icon',
+              type: 'select',
+              defaultValue: '',
+              options: [
+                { label: t('icon-none'), value: '' },
+                ...COMMON_ICONS.map(v => ({ label: v, value: v })),
+                { label: t('icon-custom'), value: '__custom__' },
+              ],
+            },
+            {
+              key: 'customIcon',
+              labelKey: 'config-custom-icon',
+              type: 'text',
+              defaultValue: '',
+              placeholder: 'custom lucide icon name',
+              dependsOn: { field: 'icon', values: ['__custom__'] },
+            },
+            {
+              key: 'actionType',
+              labelKey: 'config-action-type',
+              type: 'select',
+              defaultValue: 'command',
+              options: [
+                { label: t('action-command'), value: 'command' },
+                { label: t('action-open-note'), value: 'open-note' },
+              ],
+            },
+            {
+              key: 'command',
+              labelKey: 'config-command-id',
+              type: 'text',
+              defaultValue: '',
+              placeholder: 'app:open-vault',
+              dependsOn: { field: 'actionType', values: ['command'] },
+            },
+            {
+              key: 'notePath',
+              labelKey: 'config-note-path',
+              type: 'text',
+              defaultValue: '',
+              placeholder: 'folder/note.md',
+              dependsOn: { field: 'actionType', values: ['open-note'] },
+            },
+          ],
+        },
       },
     ];
 
-    const widgets = [
-      { ctor: StatsCardWidget, meta: metas[0] },
-      { ctor: RecentFilesWidget, meta: metas[1] },
-      { ctor: TagCloudWidget, meta: metas[2] },
-      { ctor: DataviewWidget, meta: metas[3] },
-      { ctor: DataviewJSWidget, meta: metas[4] },
-      { ctor: ContainerRowWidget, meta: metas[5] },
-      { ctor: ContainerColWidget, meta: metas[6] },
-      { ctor: ContainerTabHWidget, meta: metas[7] },
-      { ctor: ContainerTabVWidget, meta: metas[8] },
-      { ctor: ContainerFreeformWidget, meta: metas[9] },
-      { ctor: BacklinksWidget, meta: metas[10] },
-      { ctor: RandomNoteWidget, meta: metas[11] },
-      { ctor: ButtonWidget, meta: metas[12] },
-      { ctor: LabelWidget, meta: metas[13] },
-    ];
-
-    for (const { ctor, meta } of widgets) {
+    for (const { ctor, meta } of widgetRegistrations) {
       registerWidgetType(ctor, meta);
     }
   }
@@ -399,10 +386,52 @@ export default class WidgetPlugin extends Plugin {
     if (changed) new Notice('已迁移旧数据，子部件已提升为独立部件');
   }
 
+  private async migrateContainerData(): Promise<void> {
+    let changed = false;
+    for (const w of this.store.getWidgets()) {
+      if (w.type !== 'container') continue;
+      // Migrate freeform positions (old % → px)
+      const positions = w.settings?.childPositions as Record<string, { x: number; y: number; w: number; h: number }> | undefined;
+      if (positions && w.settings?._freeformVersion !== 2) {
+        for (const key of Object.keys(positions)) {
+          const p = positions[key];
+          positions[key] = {
+            x: Math.round(p.x / 100 * 600),
+            y: Math.round(p.y / 100 * 400),
+            w: Math.round(p.w / 100 * 600),
+            h: Math.round(p.h / 100 * 400),
+          };
+        }
+        w.settings._freeformVersion = 2;
+        changed = true;
+      }
+      // Migrate flat children + childPositions → tabs structure
+      const tabs = w.settings?.tabs as any[];
+      if (!tabs || tabs.length === 0) {
+        const flatChildren = w.children ?? [];
+        const flatPositions = w.settings?.childPositions as Record<string, any> ?? {};
+        w.settings.tabs = [{
+          name: 'Tab 1',
+          children: [...flatChildren],
+          childPositions: JSON.parse(JSON.stringify(flatPositions)),
+        }];
+        w.settings.showTabs = false;
+        w.settings.tabPosition = 'top';
+        changed = true;
+      }
+    }
+    if (changed) await this.store.save();
+  }
+
   private migrateLegacyTypes(): void {
     const typeMap: Record<string, string> = {
       'dv-table': 'dataview',
       'dv-list': 'dataview',
+      'container-row': 'container',
+      'container-col': 'container',
+      'container-tab-h': 'container',
+      'container-tab-v': 'container',
+      'container-freeform': 'container',
     };
     for (const w of this.store.getWidgets()) {
       const newType = typeMap[w.type];

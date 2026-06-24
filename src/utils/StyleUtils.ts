@@ -24,11 +24,6 @@ export function applyWidgetStyle(container: HTMLElement, config: WidgetConfig, l
   } else if (style.height) {
     container.style.height = style.height;
   }
-  container.style.paddingTop = style.paddingTop || '';
-  container.style.paddingBottom = style.paddingBottom || '';
-  container.style.paddingLeft = style.paddingLeft || '';
-  container.style.paddingRight = style.paddingRight || '';
-
 }
 
 function getFieldValue(item: any, source: 'yaml' | 'fileprop', field: string): string {

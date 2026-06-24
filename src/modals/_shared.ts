@@ -1,10 +1,12 @@
-export const CONTAINER_TYPES = new Set(['container-row', 'container-col', 'container-tab-h', 'container-tab-v', 'container-freeform']);
-export const LEAF_TYPES = new Set(['stats-card', 'recent-files', 'tag-cloud', 'dataview', 'dv-js', 'backlinks', 'random-note', 'button', 'label']);
+import { CONTAINER_TYPES, LEAF_TYPES } from '../types';
+
+export const CONTAINER_TYPES_SET = new Set<string>(CONTAINER_TYPES as unknown as string[]);
+export const LEAF_TYPES_SET = new Set<string>(LEAF_TYPES as unknown as string[]);
 
 export function isContainerType(type: string): boolean {
-  return CONTAINER_TYPES.has(type);
+  return CONTAINER_TYPES_SET.has(type);
 }
 
 export function isLeafType(type: string): boolean {
-  return LEAF_TYPES.has(type);
+  return LEAF_TYPES_SET.has(type);
 }

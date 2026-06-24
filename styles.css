@@ -1,5 +1,5 @@
 .xyw-block {
-  padding: 12px 12px 36px;
+  padding: 12px;
   margin: 8px 0;
   min-height: 10px;
   position: relative;
@@ -296,35 +296,19 @@ button.xyw-edit-overlay:hover {
   gap: 4px;
 }
 
-/* Container layouts */
-.xyw-container-row {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  min-height: 40px;
-}
-
-.xyw-container-col {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 40px;
+/* Container layout */
+.xyw-container {
+  width: 100%;
 }
 
 .xyw-container-cell {
-  flex: 1;
-  min-width: 0;
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
-  padding: 8px;
+  padding: 0;
   background: var(--background-secondary-alt);
 }
 
 /* Freeform layout */
-.xyw-container-freeform {
-  min-height: 200px;
-  width: 100%;
-}
 
 .xyw-freeform-cell {
   overflow: auto;
@@ -418,11 +402,7 @@ button.xyw-edit-overlay:hover {
   border-radius: 4px;
 }
 
-/* Horizontal tabs */
-.xyw-container-tab-h {
-  min-height: 40px;
-}
-
+/* Tab bar in containers */
 .xyw-tab-bar-h {
   display: flex;
   gap: 4px;
@@ -430,6 +410,8 @@ button.xyw-edit-overlay:hover {
 }
 
 .xyw-tab-content-h {
+  position: relative;
+  overflow: auto;
   padding: 8px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
@@ -437,10 +419,6 @@ button.xyw-edit-overlay:hover {
 }
 
 /* Vertical tabs */
-.xyw-container-tab-v {
-  min-height: 40px;
-}
-
 .xyw-tab-v-wrapper {
   display: flex;
   flex-direction: row;
@@ -458,6 +436,8 @@ button.xyw-edit-overlay:hover {
 }
 
 .xyw-tab-content-v {
+  position: relative;
+  overflow: auto;
   flex: 1;
   min-width: 0;
   padding: 8px;
@@ -475,6 +455,42 @@ button.xyw-edit-overlay:hover {
 .xyw-tab-bar-v .xyw-tab-active {
   color: var(--text-accent);
   font-weight: 600;
+}
+
+/* Tab editor in WidgetEditorModal */
+.xyw-tab-editor-bar {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.xyw-tab-editor-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.xyw-tab-editor-btn:hover {
+  background: var(--background-modifier-hover);
+}
+.xyw-tab-editor-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+.xyw-tab-editor-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.xyw-tab-editor-actions .setting-item {
+  border: none !important;
+  padding: 0 !important;
 }
 
 /* Children editor in settings */

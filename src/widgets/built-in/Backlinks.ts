@@ -10,7 +10,7 @@ export class BacklinksWidget extends BaseWidget {
     const app = (window as any).app;
     const activeFile = app.workspace.getActiveFile();
     if (!activeFile) {
-      container.createEl('div', { cls: 'xyw-empty', text: 'No active file' });
+      container.createEl('div', { cls: 'xyw-empty', text: t('msg-no-active-file') });
       return;
     }
 

@@ -56,13 +56,9 @@ const translations: Record<string, Record<Lang, string>> = {
   'type-tag-cloud': { en: 'Tag Cloud', zh: '标签云' },
   'type-dataview': { en: 'Dataview', zh: 'Dataview 查询' },
   'type-dv-js': { en: 'DataviewJS', zh: 'DataviewJS 脚本' },
-  'type-container-row': { en: 'Row', zh: '行排列' },
-  'type-container-col': { en: 'Column', zh: '列排列' },
-  'type-container-tab-h': { en: 'Horizontal Tabs', zh: '标签水平排列' },
-  'type-container-tab-v': { en: 'Vertical Tabs', zh: '标签垂直排列' },
+  'type-container': { en: 'Container', zh: '容器' },
   'type-backlinks': { en: 'Backlinks', zh: '反向链接' },
   'type-random-note': { en: 'Random Note', zh: '随机笔记' },
-  'type-container-freeform': { en: 'Freeform', zh: '自由布局' },
 
   'stats-total-notes': { en: 'Total Notes', zh: '笔记总数' },
   'stats-today': { en: 'Created Today', zh: '今日新建' },
@@ -89,12 +85,10 @@ const translations: Record<string, Record<Lang, string>> = {
   'content-bordered': { en: 'Bordered', zh: '网格' },
 
   'label-children': { en: 'Children', zh: '子部件' },
-  'label-layout-type': { en: 'Layout', zh: '子部件排列方式' },
   'label-widget-list': { en: 'Widgets', zh: '部件列表' },
   'label-child-list': { en: 'Widgets', zh: '子部件列表' },
   'btn-rename': { en: 'Rename', zh: '重命名' },
   'btn-add-child': { en: 'Add Child', zh: '添加子部件' },
-  'btn-switch-type-warn': { en: 'Switching to a non-container type will clear all children. Continue?', zh: '切换为非容器类型将清除所有子部件，是否继续？' },
   'msg-no-children': { en: 'No children. Click "Add Child" to add one.', zh: '暂无子部件，点击"添加子部件"添加。' },
 
   'style-title': { en: 'Title Style', zh: '标题样式' },
@@ -112,10 +106,8 @@ const translations: Record<string, Record<Lang, string>> = {
   'style-border-color': { en: 'Border Color', zh: '边框颜色' },
   'style-width': { en: 'Width', zh: '宽度' },
   'style-height': { en: 'Height', zh: '高度' },
-  'style-padding-top': { en: 'Padding Top', zh: '上边距' },
-  'style-padding-bottom': { en: 'Padding Bottom', zh: '下边距' },
-  'style-padding-left': { en: 'Padding Left', zh: '左边距' },
-  'style-padding-right': { en: 'Padding Right', zh: '右边距' },
+  'style-container-padding-right': { en: 'Right Padding (px)', zh: '右边距（px）' },
+
 
   'style-align-left': { en: 'Left', zh: '左对齐' },
   'style-align-center': { en: 'Center', zh: '居中' },
@@ -127,7 +119,6 @@ const translations: Record<string, Record<Lang, string>> = {
   'valign-top': { en: 'Top', zh: '上对齐' },
   'valign-middle': { en: 'Middle', zh: '居中对齐' },
   'valign-bottom': { en: 'Bottom', zh: '下对齐' },
-  'align-stretch': { en: 'Stretch', zh: '拉伸' },
   'freeform-x': { en: 'X', zh: 'X' },
   'freeform-y': { en: 'Y', zh: 'Y' },
   'freeform-w': { en: 'W', zh: 'W' },
@@ -196,6 +187,20 @@ const translations: Record<string, Record<Lang, string>> = {
 
   'icon-none': { en: 'None', zh: '无' },
   'icon-custom': { en: 'Custom...', zh: '自定义...' },
+
+  'msg-no-leaf-widgets': { en: 'No leaf widgets available', zh: '暂无叶子部件' },
+  'msg-name-required': { en: 'Name is required', zh: '请输入名称' },
+  'msg-no-active-file': { en: 'No active file', zh: '无活动文件' },
+
+  'label-show-tabs': { en: 'Show Tab Bar', zh: '显示标签栏' },
+  'label-tab-position': { en: 'Tab Position', zh: '标签位置' },
+  'label-tab-list': { en: 'Tabs', zh: '标签页' },
+  'tab-position-top': { en: 'Top', zh: '上方' },
+  'tab-position-left': { en: 'Left', zh: '左侧' },
+  'tab-position-right': { en: 'Right', zh: '右侧' },
+  'tab-position-bottom': { en: 'Bottom', zh: '下方' },
+  'btn-add-tab': { en: 'Add Tab', zh: '添加标签页' },
+  'tab-default-name': { en: 'Tab {n}', zh: '标签 {n}' },
 };
 
 export function getLang(): Lang {

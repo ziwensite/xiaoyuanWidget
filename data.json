@@ -3,183 +3,51 @@
     {
       "name": "笔记总数",
       "type": "stats-card",
-      "settings": {
-        "dimension": "total",
-        "showLabel": "hide"
-      },
-      "children": [],
-      "id": "20260618102724_34wj",
-      "createdAt": 1781749644846,
-      "updatedAt": 1782198765903,
-      "filters": [],
-      "title": "笔记总数",
-      "style": {
-        "title": {
-          "fontSize": ""
-        }
-      }
-    },
-    {
-      "name": "本周笔记",
-      "type": "stats-card",
-      "settings": {
-        "dimension": "week",
-        "showLabel": "hide"
-      },
-      "children": [],
-      "id": "20260618102823_9hj9",
-      "createdAt": 1781749703630,
-      "updatedAt": 1782012250416,
-      "title": "本周笔记",
-      "filters": []
-    },
-    {
-      "name": "统计测试",
-      "type": "container-row",
-      "children": [
-        "20260618102724_34wj",
-        "20260618102823_9hj9"
-      ],
-      "id": "20260620205029_z4rg",
-      "createdAt": 1781959829057,
-      "updatedAt": 1782198766944,
-      "style": {
-        "paddingBottom": "0px"
-      }
-    },
-    {
-      "name": "测试按钮",
-      "type": "container-row",
-      "children": [
-        "20260623174200_vi62",
-        "20260623175527_x7ow"
-      ],
-      "id": "20260623170820_hexv",
-      "createdAt": 1782205700916,
-      "updatedAt": 1782220007209,
-      "style": {
-        "height": "160px",
-        "paddingTop": "0px",
-        "paddingBottom": "0px",
-        "paddingLeft": "0px",
-        "paddingRight": "0px"
-      },
-      "settings": {
-        "hAlign": "right",
-        "vAlign": "middle"
-      }
-    },
-    {
-      "name": "按钮1",
-      "type": "button",
-      "settings": {
-        "buttonText": "点我",
-        "buttonStyle": "default",
-        "cssClass": "",
-        "icon": "alert-circle",
-        "customIcon": "",
-        "actionType": "command",
-        "command": "webviewer:open",
-        "notePath": ""
-      },
+      "settings": {},
       "children": [],
       "title": "",
       "filters": [],
-      "id": "20260623174200_vi62",
-      "createdAt": 1782207720341,
-      "updatedAt": 1782219296279,
+      "id": "a9465108-c6b5-4953-a2ea-744acc7da79a",
+      "createdAt": 1782288905366,
+      "updatedAt": 1782289689123,
       "style": {
-        "cardStyle": "default",
-        "content": {
-          "valign": "middle",
-          "align": "left"
-        },
-        "paddingTop": "0px",
-        "paddingBottom": "0px",
-        "paddingLeft": "0px",
-        "paddingRight": "0px",
-        "width": "20%",
-        "title": {
-          "align": "center"
-        },
-        "height": "20%"
+        "cardStyle": "bordered"
       }
     },
     {
-      "name": "标签1",
-      "type": "label",
-      "settings": {
-        "text": "我是",
-        "labelStyle": "tag",
-        "cssClass": "",
-        "icon": "",
-        "customIcon": "",
-        "actionType": "open-note",
-        "command": "",
-        "notePath": "效率工具/健身记录.md"
-      },
-      "children": [],
-      "title": "",
-      "filters": [],
-      "id": "20260623175527_x7ow",
-      "createdAt": 1782208527324,
-      "updatedAt": 1782213831886,
-      "style": {
-        "content": {
-          "valign": "middle",
-          "align": "center"
-        },
-        "cardStyle": "default",
-        "width": "20%",
-        "title": {
-          "align": "center"
-        },
-        "height": "20%"
-      }
-    },
-    {
-      "name": "自由布局",
-      "type": "container-row",
+      "name": "测试",
+      "type": "container",
       "children": [
-        "20260618102724_34wj",
-        "20260618102823_9hj9",
-        "20260623174200_vi62",
-        "20260623175527_x7ow"
+        "a9465108-c6b5-4953-a2ea-744acc7da79a"
       ],
-      "style": {
-        "height": "400px"
-      },
       "settings": {
-        "childPositions": {
-          "20260618102724_34wj": {
-            "x": 0,
-            "y": 0,
-            "w": 36.328125,
-            "h": 25
-          },
-          "20260618102823_9hj9": {
-            "x": 63.8671875,
-            "y": 0,
-            "w": 35.7421875,
-            "h": 23.241206030150753
-          },
-          "20260623174200_vi62": {
-            "x": 0,
-            "y": 26.130653266331656,
-            "w": 100,
-            "h": 25
-          },
-          "20260623175527_x7ow": {
-            "x": 0,
-            "y": 52.63819095477387,
-            "w": 100,
-            "h": 25
+        "showTabs": false,
+        "tabPosition": "top",
+        "tabs": [
+          {
+            "name": "标签 1",
+            "children": [
+              "a9465108-c6b5-4953-a2ea-744acc7da79a"
+            ],
+            "childPositions": {
+              "a9465108-c6b5-4953-a2ea-744acc7da79a": {
+                "x": 0,
+                "y": 0,
+                "w": 100,
+                "h": 150
+              }
+            }
           }
-        }
+        ],
+        "_freeformVersion": 2
       },
-      "id": "20260623223542_jmvi",
-      "createdAt": 1782225342278,
-      "updatedAt": 1782225496776
+      "style": {
+        "width": "",
+        "containerPaddingRight": ""
+      },
+      "id": "f3f1dbd5-7414-4798-8824-d9d8af2bdcbb",
+      "createdAt": 1782288909285,
+      "updatedAt": 1782319684934
     }
   ]
 }

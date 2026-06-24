@@ -1,7 +1,10 @@
-import { IWidget, WidgetConfig } from '../types';
+import { IWidget, WidgetConfig, ChildWidgetConfig, WidgetDefinition } from '../types';
 import { applyWidgetStyle } from '../utils/StyleUtils';
 import { getCardStyleCSS, getContentStyleCSS } from '../utils/StyleThemes';
 import { isContainerType } from '../modals/_shared';
+import { createWidget } from './registry';
+
+export const renderingStack = new Set<string>();
 
 export abstract class BaseWidget implements IWidget {
   protected container: HTMLElement | null = null;
@@ -78,5 +81,38 @@ export abstract class BaseWidget implements IWidget {
     this._active = false;
     this.container = null;
     this.config = null;
+  }
+
+  protected async renderChildWidget(
+    container: HTMLElement,
+    child: ChildWidgetConfig,
+    sourcePath?: string
+  ): Promise<IWidget | null> {
+    const childWidget = createWidget(child.type);
+    if (!childWidget) {
+      container.createEl('div', { cls: 'xyw-error', text: `Unknown type: ${child.type}` });
+      return null;
+    }
+
+    if (child.id && renderingStack.has(child.id)) {
+      container.createEl('div', { cls: 'xyw-error', text: `Cycle detected: widget "${child.id}" is already being rendered in an ancestor container` });
+      return null;
+    }
+
+    if (child.id) renderingStack.add(child.id);
+    try {
+      await childWidget.render(container, {
+        type: child.type,
+        title: child.title || '',
+        settings: child.settings,
+        children: child.children,
+        style: child.style,
+        filters: child.filters,
+        sourcePath,
+      });
+    } finally {
+      if (child.id) renderingStack.delete(child.id);
+    }
+    return childWidget;
   }
 }

@@ -1,5 +1,6 @@
 import { App, Modal, Setting, Notice, FuzzySuggestModal, Command, TFile } from 'obsidian';
 import { t } from '../i18n';
+import { FocusManager } from '../utils/FocusManager';
 import { WidgetStore } from '../store/WidgetStore';
 import { getAllWidgetMetas, getWidgetMeta } from '../widgets/registry';
 import { AnyWidgetType, WidgetStyle, FilterRule, SettingField } from '../types';
@@ -409,9 +410,6 @@ const renderAll = () => {
         });
       });
 
-    this.renderPercentSetting(card, t('style-width'), 'width');
-    this.renderPercentSetting(card, t('style-height'), 'height');
-
     new Setting(card)
       .setName(t('style-card'))
       .addDropdown(dd => {
@@ -440,39 +438,6 @@ const renderAll = () => {
         });
       });
 
-    this.renderPaddingSetting(card, t('style-padding-top') + '（px）', 'paddingTop');
-    this.renderPaddingSetting(card, t('style-padding-bottom') + '（px）', 'paddingBottom');
-    this.renderPaddingSetting(card, t('style-padding-left') + '（px）', 'paddingLeft');
-    this.renderPaddingSetting(card, t('style-padding-right') + '（px）', 'paddingRight');
-  }
-
-  private renderPercentSetting(card: HTMLElement, label: string, prop: 'width' | 'height'): void {
-    new Setting(card)
-      .setName(label)
-      .addText(tc => {
-        tc.inputEl.type = 'number';
-        tc.inputEl.placeholder = '100';
-        const raw = this.editingStyle?.[prop] ?? '';
-        tc.setValue(raw.endsWith('%') ? raw.slice(0, -1) : '');
-        tc.onChange(v => {
-          if (!this.editingStyle) this.editingStyle = {};
-          this.editingStyle[prop] = v ? `${v}%` : '';
-        });
-      });
-  }
-
-  private renderPaddingSetting(card: HTMLElement, label: string, prop: 'paddingTop' | 'paddingBottom' | 'paddingLeft' | 'paddingRight'): void {
-    new Setting(card)
-      .setName(label)
-      .addText(tc => {
-        tc.inputEl.type = 'number';
-        tc.inputEl.placeholder = '默认';
-        tc.setValue(this.editingStyle?.[prop]?.replace(/px$/, '') ?? '');
-        tc.onChange(v => {
-          if (!this.editingStyle) this.editingStyle = {};
-          this.editingStyle[prop] = v ? `${v}px` : '';
-        });
-      });
   }
 
   private renderFilterSection(container: HTMLElement): void {
@@ -570,6 +535,7 @@ const renderAll = () => {
   }
 
   onClose(): void {
+    FocusManager.restoreEditorFocus(this.app);
     this.contentEl.empty();
     if (this.resolve) this.resolve(this.result);
   }

@@ -12,33 +12,39 @@ export class TagCloudWidget extends BaseWidget {
 
     const vault = app.vault;
     const minCount = (config.settings.minCount as number) ?? 1;
-
-    let files = vault.getMarkdownFiles() as any[];
-    files = applyFilters(files, config.filters);
     const cache = app.metadataCache;
     const tagCount = new Map<string, number>();
 
-    for (const file of files) {
-      const metadata = cache.getFileCache(file);
-      if (!metadata) continue;
+    if (config.filters && config.filters.length > 0) {
+      let files = vault.getMarkdownFiles() as any[];
+      files = applyFilters(files, config.filters);
+      for (const file of files) {
+        const metadata = cache.getFileCache(file);
+        if (!metadata) continue;
 
-      const seen = new Set<string>();
+        const seen = new Set<string>();
 
-      const processTag = (tag: string) => {
-        const cleanTag = String(tag).replace(/^#/, '');
-        if (!cleanTag || seen.has(cleanTag)) return;
-        seen.add(cleanTag);
-        tagCount.set(cleanTag, (tagCount.get(cleanTag) ?? 0) + 1);
-      };
+        const processTag = (tag: string) => {
+          const cleanTag = String(tag).replace(/^#/, '');
+          if (!cleanTag || seen.has(cleanTag)) return;
+          seen.add(cleanTag);
+          tagCount.set(cleanTag, (tagCount.get(cleanTag) ?? 0) + 1);
+        };
 
-      if (metadata.frontmatter?.tags) {
-        const tags = metadata.frontmatter.tags;
-        const tagArr = Array.isArray(tags) ? tags : [tags];
-        for (const tag of tagArr) processTag(tag);
+        if (metadata.frontmatter?.tags) {
+          const tags = metadata.frontmatter.tags;
+          const tagArr = Array.isArray(tags) ? tags : [tags];
+          for (const tag of tagArr) processTag(tag);
+        }
+
+        if (metadata.tags) {
+          for (const t of metadata.tags) processTag(t.tag);
+        }
       }
-
-      if (metadata.tags) {
-        for (const t of metadata.tags) processTag(t.tag);
+    } else {
+      const allTags = cache.getTags();
+      for (const [tag, count] of Object.entries(allTags)) {
+        tagCount.set(tag.replace(/^#/, ''), count as number);
       }
     }
 

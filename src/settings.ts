@@ -5,6 +5,7 @@ import { t, t2 } from './i18n';
 import { WidgetEditorModal, ChildEditorModal } from './modals';
 import { isLeafType } from './modals/_shared';
 import { scanWidgetReferences } from './utils/ReferenceScanner';
+import { FocusManager } from './utils/FocusManager';
 
 export class WidgetSettingTab extends PluginSettingTab {
   private filterText = '';
@@ -12,6 +13,11 @@ export class WidgetSettingTab extends PluginSettingTab {
 
   constructor(app: App, private plugin: WidgetPlugin, private store: WidgetStore) {
     super(app, plugin);
+  }
+
+  hide(): void {
+    super.hide();
+    FocusManager.restoreEditorFocus(this.app);
   }
 
   display(): void {
@@ -67,6 +73,7 @@ export class WidgetSettingTab extends PluginSettingTab {
 
     this.contentDiv = containerEl.createEl('div');
     this.renderContent();
+    searchInput.focus();
   }
 
   private renderContent(): void {
@@ -92,7 +99,7 @@ export class WidgetSettingTab extends PluginSettingTab {
       const containerHeader = this.contentDiv.createEl('div', { cls: 'xyw-section-header' });
       containerHeader.createEl('h3', { text: `\u{1F4E6} ${t('label-container')}` });
       new ButtonComponent(containerHeader)
-        .setButtonText('新建')
+        .setButtonText(t('btn-new-container'))
         .setCta()
         .onClick(() => {
           new WidgetEditorModal(this.app, this.plugin, this.store, null, () => this.display()).open();
@@ -107,7 +114,7 @@ export class WidgetSettingTab extends PluginSettingTab {
       const leafHeader = this.contentDiv.createEl('div', { cls: 'xyw-section-header' });
       leafHeader.createEl('h3', { text: `\u{1F331} ${t('label-leaf')}` });
       new ButtonComponent(leafHeader)
-        .setButtonText('新建')
+        .setButtonText(t('btn-new-leaf'))
         .setCta()
         .onClick(async () => {
           const modal = new ChildEditorModal(this.app, this.store, null);

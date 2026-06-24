@@ -4,6 +4,7 @@ import { WidgetCodeBlockData, IWidget, WidgetDefinition, ChildWidgetConfig } fro
 import type WidgetPlugin from '../main';
 import { WidgetEditorModal, ChildEditorModal } from '../modals';
 import { isContainerType } from '../modals/_shared';
+import { renderingStack } from '../widgets/base';
 import { setIcon } from 'obsidian';
 
 export class CodeBlockRenderer {
@@ -11,6 +12,7 @@ export class CodeBlockRenderer {
   private plugin: WidgetPlugin;
   private activeInstances: Set<IWidget> = new Set();
   private containerMap: Map<HTMLElement, IWidget> = new Map();
+  private sourceMap: Map<HTMLElement, { source: string; sourcePath?: string }> = new Map();
   private cleanupFns: (() => void)[] = [];
 
   constructor(store: WidgetStore, plugin: WidgetPlugin) {
@@ -20,10 +22,14 @@ export class CodeBlockRenderer {
   }
 
   private setupAutoRefresh(): void {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const refreshAll = () => {
-      for (const widget of this.activeInstances) {
-        widget.refresh().catch(() => {});
-      }
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        for (const [container, info] of this.sourceMap) {
+          this.render(info.source, container, info.sourcePath).catch(() => {});
+        }
+      }, 500);
     };
 
     const vault = this.plugin.app.vault;
@@ -33,7 +39,10 @@ export class CodeBlockRenderer {
       vault.on('create', refreshAll),
     ];
 
-    this.cleanupFns = events.map(evt => () => vault.offref(evt));
+    this.cleanupFns = [
+      ...events.map(evt => () => vault.offref(evt)),
+      () => { if (debounceTimer) clearTimeout(debounceTimer); },
+    ];
   }
 
   destroy(): void {
@@ -41,6 +50,7 @@ export class CodeBlockRenderer {
     for (const widget of this.activeInstances) widget.destroy();
     this.activeInstances.clear();
     this.containerMap.clear();
+    this.sourceMap.clear();
     this.cleanupFns = [];
   }
 
@@ -72,6 +82,11 @@ export class CodeBlockRenderer {
       return;
     }
 
+    if (renderingStack.has(def.id)) {
+      container.createEl('div', { cls: 'xyw-error', text: `Cycle detected: widget "${def.id}" is already being rendered` });
+      return;
+    }
+
     const widget = createWidget(def.type);
     if (!widget) {
       container.createEl('div', { cls: 'xyw-error', text: `Unknown widget type: ${def.type}` });
@@ -90,19 +105,26 @@ export class CodeBlockRenderer {
         Object.assign(mergedSettings, data.settings);
       }
       const resolvedChildren = this.resolveChildren(def.children) as ChildWidgetConfig[];
-      await widget.render(container, {
-        type: def.type,
-        title: data.title || def.title || '',
-        settings: mergedSettings,
-        children: resolvedChildren,
-        style: def.style,
-        filters: def.filters,
-        sourcePath,
-      });
+      renderingStack.add(def.id);
+      try {
+        await widget.render(container, {
+          type: def.type,
+          title: data.title || def.title || '',
+          settings: mergedSettings,
+          children: resolvedChildren,
+          style: def.style,
+          filters: def.filters,
+          sourcePath,
+        });
+      } finally {
+        renderingStack.delete(def.id);
+      }
       this.activeInstances.add(widget);
       this.containerMap.set(container, widget);
+      this.sourceMap.set(container, { source, sourcePath });
     } catch (e: unknown) {
       container.empty();
+      this.sourceMap.delete(container);
       const message = e instanceof Error ? e.message : String(e);
       container.createEl('div', { cls: 'xyw-error', text: `Render error: ${message}` });
     }

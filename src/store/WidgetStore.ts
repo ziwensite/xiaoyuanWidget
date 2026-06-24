@@ -11,6 +11,10 @@ export class WidgetStore {
     this.saveFn = () => saveData(this.data);
   }
 
+  async save(): Promise<void> {
+    await this.saveFn();
+  }
+
   getWidgets(): WidgetDefinition[] {
     return this.data.widgets;
   }

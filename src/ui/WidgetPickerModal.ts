@@ -5,6 +5,7 @@ import { WidgetDefinition } from '../types';
 import { isContainerType } from '../modals/_shared';
 import type WidgetPlugin from '../main';
 import { WidgetEditorModal, ChildEditorModal } from '../modals';
+import { FocusManager } from '../utils/FocusManager';
 
 export class WidgetPickerModal extends Modal {
   private store: WidgetStore;
@@ -124,6 +125,7 @@ export class WidgetPickerModal extends Modal {
   }
 
   onClose(): void {
+    FocusManager.restoreEditorFocus(this.app);
     this.contentEl.empty();
   }
 }

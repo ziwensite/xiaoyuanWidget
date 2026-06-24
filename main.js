@@ -31,20 +31,37 @@ var import_obsidian9 = require("obsidian");
 
 // src/utils.ts
 function generateId() {
-  const d = new Date();
-  const pad = (n, len = 2) => String(n).padStart(len, "0");
-  const rand = Math.random().toString(36).substring(2, 6);
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}_${rand}`;
+  return crypto.randomUUID();
 }
 
+// src/types.ts
+var LEAF_TYPES = [
+  "stats-card",
+  "recent-files",
+  "tag-cloud",
+  "dataview",
+  "dv-js",
+  "backlinks",
+  "random-note",
+  "button",
+  "label"
+];
+var CONTAINER_TYPES = [
+  "container"
+];
+var DEFAULT_CHILD_X = 10;
+var DEFAULT_CHILD_Y = 10;
+var DEFAULT_CHILD_W = 100;
+var DEFAULT_CHILD_H = 200;
+
 // src/modals/_shared.ts
-var CONTAINER_TYPES = /* @__PURE__ */ new Set(["container-row", "container-col", "container-tab-h", "container-tab-v", "container-freeform"]);
-var LEAF_TYPES = /* @__PURE__ */ new Set(["stats-card", "recent-files", "tag-cloud", "dataview", "dv-js", "backlinks", "random-note", "button", "label"]);
+var CONTAINER_TYPES_SET = new Set(CONTAINER_TYPES);
+var LEAF_TYPES_SET = new Set(LEAF_TYPES);
 function isContainerType(type) {
-  return CONTAINER_TYPES.has(type);
+  return CONTAINER_TYPES_SET.has(type);
 }
 function isLeafType(type) {
-  return LEAF_TYPES.has(type);
+  return LEAF_TYPES_SET.has(type);
 }
 
 // src/store/WidgetStore.ts
@@ -52,6 +69,9 @@ var WidgetStore = class {
   constructor(initialData, saveData) {
     this.data = initialData ?? { widgets: [] };
     this.saveFn = () => saveData(this.data);
+  }
+  async save() {
+    await this.saveFn();
   }
   getWidgets() {
     return this.data.widgets;
@@ -171,10 +191,6 @@ function applyWidgetStyle(container, config, leaf) {
   } else if (style.height) {
     container.style.height = style.height;
   }
-  container.style.paddingTop = style.paddingTop || "";
-  container.style.paddingBottom = style.paddingBottom || "";
-  container.style.paddingLeft = style.paddingLeft || "";
-  container.style.paddingRight = style.paddingRight || "";
 }
 function getFieldValue(item, source, field) {
   if (source === "fileprop") {
@@ -386,6 +402,7 @@ ${h} ul li:hover { background: var(--background-secondary); }`;
 }
 
 // src/widgets/base.ts
+var renderingStack = /* @__PURE__ */ new Set();
 var BaseWidget = class {
   constructor() {
     this.container = null;
@@ -468,6 +485,34 @@ var BaseWidget = class {
     this.container = null;
     this.config = null;
   }
+  async renderChildWidget(container, child, sourcePath) {
+    const childWidget = createWidget(child.type);
+    if (!childWidget) {
+      container.createEl("div", { cls: "xyw-error", text: `Unknown type: ${child.type}` });
+      return null;
+    }
+    if (child.id && renderingStack.has(child.id)) {
+      container.createEl("div", { cls: "xyw-error", text: `Cycle detected: widget "${child.id}" is already being rendered in an ancestor container` });
+      return null;
+    }
+    if (child.id)
+      renderingStack.add(child.id);
+    try {
+      await childWidget.render(container, {
+        type: child.type,
+        title: child.title || "",
+        settings: child.settings,
+        children: child.children,
+        style: child.style,
+        filters: child.filters,
+        sourcePath
+      });
+    } finally {
+      if (child.id)
+        renderingStack.delete(child.id);
+    }
+    return childWidget;
+  }
 };
 
 // src/i18n.ts
@@ -520,13 +565,9 @@ var translations = {
   "type-tag-cloud": { en: "Tag Cloud", zh: "\u6807\u7B7E\u4E91" },
   "type-dataview": { en: "Dataview", zh: "Dataview \u67E5\u8BE2" },
   "type-dv-js": { en: "DataviewJS", zh: "DataviewJS \u811A\u672C" },
-  "type-container-row": { en: "Row", zh: "\u884C\u6392\u5217" },
-  "type-container-col": { en: "Column", zh: "\u5217\u6392\u5217" },
-  "type-container-tab-h": { en: "Horizontal Tabs", zh: "\u6807\u7B7E\u6C34\u5E73\u6392\u5217" },
-  "type-container-tab-v": { en: "Vertical Tabs", zh: "\u6807\u7B7E\u5782\u76F4\u6392\u5217" },
+  "type-container": { en: "Container", zh: "\u5BB9\u5668" },
   "type-backlinks": { en: "Backlinks", zh: "\u53CD\u5411\u94FE\u63A5" },
   "type-random-note": { en: "Random Note", zh: "\u968F\u673A\u7B14\u8BB0" },
-  "type-container-freeform": { en: "Freeform", zh: "\u81EA\u7531\u5E03\u5C40" },
   "stats-total-notes": { en: "Total Notes", zh: "\u7B14\u8BB0\u603B\u6570" },
   "stats-today": { en: "Created Today", zh: "\u4ECA\u65E5\u65B0\u5EFA" },
   "stats-week": { en: "This Week", zh: "\u672C\u5468\u65B0\u5EFA" },
@@ -550,12 +591,10 @@ var translations = {
   "content-minimal": { en: "Minimal", zh: "\u6781\u7B80" },
   "content-bordered": { en: "Bordered", zh: "\u7F51\u683C" },
   "label-children": { en: "Children", zh: "\u5B50\u90E8\u4EF6" },
-  "label-layout-type": { en: "Layout", zh: "\u5B50\u90E8\u4EF6\u6392\u5217\u65B9\u5F0F" },
   "label-widget-list": { en: "Widgets", zh: "\u90E8\u4EF6\u5217\u8868" },
   "label-child-list": { en: "Widgets", zh: "\u5B50\u90E8\u4EF6\u5217\u8868" },
   "btn-rename": { en: "Rename", zh: "\u91CD\u547D\u540D" },
   "btn-add-child": { en: "Add Child", zh: "\u6DFB\u52A0\u5B50\u90E8\u4EF6" },
-  "btn-switch-type-warn": { en: "Switching to a non-container type will clear all children. Continue?", zh: "\u5207\u6362\u4E3A\u975E\u5BB9\u5668\u7C7B\u578B\u5C06\u6E05\u9664\u6240\u6709\u5B50\u90E8\u4EF6\uFF0C\u662F\u5426\u7EE7\u7EED\uFF1F" },
   "msg-no-children": { en: 'No children. Click "Add Child" to add one.', zh: '\u6682\u65E0\u5B50\u90E8\u4EF6\uFF0C\u70B9\u51FB"\u6DFB\u52A0\u5B50\u90E8\u4EF6"\u6DFB\u52A0\u3002' },
   "style-title": { en: "Title Style", zh: "\u6807\u9898\u6837\u5F0F" },
   "style-title-align": { en: "Title Align", zh: "\u6807\u9898\u5BF9\u9F50" },
@@ -572,10 +611,7 @@ var translations = {
   "style-border-color": { en: "Border Color", zh: "\u8FB9\u6846\u989C\u8272" },
   "style-width": { en: "Width", zh: "\u5BBD\u5EA6" },
   "style-height": { en: "Height", zh: "\u9AD8\u5EA6" },
-  "style-padding-top": { en: "Padding Top", zh: "\u4E0A\u8FB9\u8DDD" },
-  "style-padding-bottom": { en: "Padding Bottom", zh: "\u4E0B\u8FB9\u8DDD" },
-  "style-padding-left": { en: "Padding Left", zh: "\u5DE6\u8FB9\u8DDD" },
-  "style-padding-right": { en: "Padding Right", zh: "\u53F3\u8FB9\u8DDD" },
+  "style-container-padding-right": { en: "Right Padding (px)", zh: "\u53F3\u8FB9\u8DDD\uFF08px\uFF09" },
   "style-align-left": { en: "Left", zh: "\u5DE6\u5BF9\u9F50" },
   "style-align-center": { en: "Center", zh: "\u5C45\u4E2D" },
   "style-align-right": { en: "Right", zh: "\u53F3\u5BF9\u9F50" },
@@ -585,7 +621,6 @@ var translations = {
   "valign-top": { en: "Top", zh: "\u4E0A\u5BF9\u9F50" },
   "valign-middle": { en: "Middle", zh: "\u5C45\u4E2D\u5BF9\u9F50" },
   "valign-bottom": { en: "Bottom", zh: "\u4E0B\u5BF9\u9F50" },
-  "align-stretch": { en: "Stretch", zh: "\u62C9\u4F38" },
   "freeform-x": { en: "X", zh: "X" },
   "freeform-y": { en: "Y", zh: "Y" },
   "freeform-w": { en: "W", zh: "W" },
@@ -642,7 +677,19 @@ var translations = {
   "action-command": { en: "Execute Command", zh: "\u6267\u884C\u547D\u4EE4" },
   "action-open-note": { en: "Open Note", zh: "\u6253\u5F00\u7B14\u8BB0" },
   "icon-none": { en: "None", zh: "\u65E0" },
-  "icon-custom": { en: "Custom...", zh: "\u81EA\u5B9A\u4E49..." }
+  "icon-custom": { en: "Custom...", zh: "\u81EA\u5B9A\u4E49..." },
+  "msg-no-leaf-widgets": { en: "No leaf widgets available", zh: "\u6682\u65E0\u53F6\u5B50\u90E8\u4EF6" },
+  "msg-name-required": { en: "Name is required", zh: "\u8BF7\u8F93\u5165\u540D\u79F0" },
+  "msg-no-active-file": { en: "No active file", zh: "\u65E0\u6D3B\u52A8\u6587\u4EF6" },
+  "label-show-tabs": { en: "Show Tab Bar", zh: "\u663E\u793A\u6807\u7B7E\u680F" },
+  "label-tab-position": { en: "Tab Position", zh: "\u6807\u7B7E\u4F4D\u7F6E" },
+  "label-tab-list": { en: "Tabs", zh: "\u6807\u7B7E\u9875" },
+  "tab-position-top": { en: "Top", zh: "\u4E0A\u65B9" },
+  "tab-position-left": { en: "Left", zh: "\u5DE6\u4FA7" },
+  "tab-position-right": { en: "Right", zh: "\u53F3\u4FA7" },
+  "tab-position-bottom": { en: "Bottom", zh: "\u4E0B\u65B9" },
+  "btn-add-tab": { en: "Add Tab", zh: "\u6DFB\u52A0\u6807\u7B7E\u9875" },
+  "tab-default-name": { en: "Tab {n}", zh: "\u6807\u7B7E {n}" }
 };
 function getLang() {
   const locale = window.moment?.locale?.() ?? "en";
@@ -761,31 +808,38 @@ var TagCloudWidget = class extends BaseWidget {
       return;
     const vault = app.vault;
     const minCount = config.settings.minCount ?? 1;
-    let files = vault.getMarkdownFiles();
-    files = applyFilters(files, config.filters);
     const cache = app.metadataCache;
     const tagCount = /* @__PURE__ */ new Map();
-    for (const file of files) {
-      const metadata = cache.getFileCache(file);
-      if (!metadata)
-        continue;
-      const seen = /* @__PURE__ */ new Set();
-      const processTag = (tag) => {
-        const cleanTag = String(tag).replace(/^#/, "");
-        if (!cleanTag || seen.has(cleanTag))
-          return;
-        seen.add(cleanTag);
-        tagCount.set(cleanTag, (tagCount.get(cleanTag) ?? 0) + 1);
-      };
-      if (metadata.frontmatter?.tags) {
-        const tags = metadata.frontmatter.tags;
-        const tagArr = Array.isArray(tags) ? tags : [tags];
-        for (const tag of tagArr)
-          processTag(tag);
+    if (config.filters && config.filters.length > 0) {
+      let files = vault.getMarkdownFiles();
+      files = applyFilters(files, config.filters);
+      for (const file of files) {
+        const metadata = cache.getFileCache(file);
+        if (!metadata)
+          continue;
+        const seen = /* @__PURE__ */ new Set();
+        const processTag = (tag) => {
+          const cleanTag = String(tag).replace(/^#/, "");
+          if (!cleanTag || seen.has(cleanTag))
+            return;
+          seen.add(cleanTag);
+          tagCount.set(cleanTag, (tagCount.get(cleanTag) ?? 0) + 1);
+        };
+        if (metadata.frontmatter?.tags) {
+          const tags = metadata.frontmatter.tags;
+          const tagArr = Array.isArray(tags) ? tags : [tags];
+          for (const tag of tagArr)
+            processTag(tag);
+        }
+        if (metadata.tags) {
+          for (const t3 of metadata.tags)
+            processTag(t3.tag);
+        }
       }
-      if (metadata.tags) {
-        for (const t3 of metadata.tags)
-          processTag(t3.tag);
+    } else {
+      const allTags = cache.getTags();
+      for (const [tag, count] of Object.entries(allTags)) {
+        tagCount.set(tag.replace(/^#/, ""), count);
       }
     }
     const sorted = Array.from(tagCount.entries()).filter(([_, count]) => count >= minCount).sort((a, b) => b[1] - a[1]);
@@ -978,248 +1032,109 @@ var DataviewJSWidget = class extends BaseWidget {
   }
 };
 
-// src/widgets/built-in/ContainerRow.ts
-function applyContainerAlignment(el, config) {
-  const hAlign = config.settings.hAlign || "stretch";
-  const vAlign = config.settings.vAlign || "stretch";
-  if (hAlign === "stretch" && vAlign === "stretch")
-    return;
-  if (hAlign === "left")
-    el.style.justifyContent = "flex-start";
-  else if (hAlign === "center")
-    el.style.justifyContent = "center";
-  else if (hAlign === "right")
-    el.style.justifyContent = "flex-end";
-  if (vAlign === "top")
-    el.style.alignItems = "flex-start";
-  else if (vAlign === "middle")
-    el.style.alignItems = "center";
-  else if (vAlign === "bottom")
-    el.style.alignItems = "flex-end";
-}
-var ContainerRowWidget = class extends BaseWidget {
-  getType() {
-    return "container-row";
-  }
-  async renderContent(container, config) {
-    const children = config.children ?? [];
-    if (!children.length) {
-      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
-      return;
-    }
-    container.addClass("xyw-container-row");
-    applyContainerAlignment(container, config);
-    for (const child of children) {
-      const cell = container.createEl("div", { cls: "xyw-container-cell" });
-      const widget = createWidget(child.type);
-      if (widget) {
-        await widget.render(cell, {
-          type: child.type,
-          title: child.title || "",
-          settings: child.settings,
-          children: child.children,
-          style: child.style,
-          filters: child.filters,
-          sourcePath: config.sourcePath
-        });
-      }
-    }
-  }
-};
-
-// src/widgets/built-in/ContainerCol.ts
-function applyContainerAlignment2(el, config) {
-  const hAlign = config.settings.hAlign || "stretch";
-  const vAlign = config.settings.vAlign || "stretch";
-  if (hAlign === "stretch" && vAlign === "stretch")
-    return;
-  if (hAlign === "left")
-    el.style.alignItems = "flex-start";
-  else if (hAlign === "center")
-    el.style.alignItems = "center";
-  else if (hAlign === "right")
-    el.style.alignItems = "flex-end";
-  if (vAlign === "top")
-    el.style.justifyContent = "flex-start";
-  else if (vAlign === "middle")
-    el.style.justifyContent = "center";
-  else if (vAlign === "bottom")
-    el.style.justifyContent = "flex-end";
-}
-var ContainerColWidget = class extends BaseWidget {
-  getType() {
-    return "container-col";
-  }
-  async renderContent(container, config) {
-    const children = config.children ?? [];
-    if (!children.length) {
-      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
-      return;
-    }
-    container.addClass("xyw-container-col");
-    applyContainerAlignment2(container, config);
-    for (const child of children) {
-      const cell = container.createEl("div", { cls: "xyw-container-cell" });
-      const widget = createWidget(child.type);
-      if (widget) {
-        await widget.render(cell, {
-          type: child.type,
-          title: child.title || "",
-          settings: child.settings,
-          style: child.style,
-          filters: child.filters,
-          sourcePath: config.sourcePath
-        });
-      }
-    }
-  }
-};
-
-// src/widgets/built-in/ContainerTab.ts
-function applyContainerAlignment3(el, config) {
-  const hAlign = config.settings.hAlign || "stretch";
-  const vAlign = config.settings.vAlign || "stretch";
-  if (hAlign === "stretch" && vAlign === "stretch")
-    return;
-  el.style.display = "flex";
-  el.style.flexDirection = "column";
-  if (hAlign === "left")
-    el.style.alignItems = "flex-start";
-  else if (hAlign === "center")
-    el.style.alignItems = "center";
-  else if (hAlign === "right")
-    el.style.alignItems = "flex-end";
-  if (vAlign === "middle")
-    el.style.justifyContent = "center";
-  else if (vAlign === "bottom")
-    el.style.justifyContent = "flex-end";
-}
-var BaseContainerTabWidget = class extends BaseWidget {
+// src/widgets/built-in/Container.ts
+var ContainerWidget = class extends BaseWidget {
   constructor() {
     super(...arguments);
-    this.activeIndex = 0;
-    this.tabContentEl = null;
-    this.childWidget = null;
+    this.activeTabIndex = 0;
+    this.activeWidgets = [];
+  }
+  getType() {
+    return "container";
+  }
+  destroy() {
+    this.destroyActiveWidgets();
+    this.activeTabIndex = 0;
+    super.destroy();
+  }
+  destroyActiveWidgets() {
+    for (const w of this.activeWidgets)
+      w.destroy();
+    this.activeWidgets = [];
   }
   async renderContent(container, config) {
-    const children = config.children ?? [];
-    if (!children.length) {
+    const showTabs = config.settings?.showTabs ?? false;
+    const tabPosition = config.settings?.tabPosition ?? "top";
+    const tabs = config.settings?.tabs ?? [];
+    if (!tabs.length) {
       container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
       return;
     }
-    const isVertical = config.type === "container-tab-v";
-    container.addClass(isVertical ? "xyw-container-tab-v" : "xyw-container-tab-h");
-    if (isVertical) {
-      const flexRow = container.createEl("div", { cls: "xyw-tab-v-wrapper" });
-      const tabBar = flexRow.createEl("div", { cls: "xyw-tab-bar-v" });
-      const tabContent = flexRow.createEl("div", { cls: "xyw-tab-content-v" });
-      applyContainerAlignment3(tabContent, config);
-      this.tabContentEl = tabContent;
-      this.buildTabs(tabBar, tabContent, children, config);
+    container.addClass("xyw-container");
+    container.style.position = "relative";
+    container.style.overflow = "auto";
+    const childMap = /* @__PURE__ */ new Map();
+    for (const child of config.children ?? []) {
+      if (child.id)
+        childMap.set(child.id, child);
+    }
+    if (!showTabs) {
+      this.activeTabIndex = 0;
+      this.renderTabChildren(container, tabs[0], childMap, config);
     } else {
-      const tabBar = container.createEl("div", { cls: "xyw-tab-bar-h" });
-      const tabContent = container.createEl("div", { cls: "xyw-tab-content-h" });
-      applyContainerAlignment3(tabContent, config);
-      this.tabContentEl = tabContent;
-      this.buildTabs(tabBar, tabContent, children, config);
+      this.activeTabIndex = Math.min(this.activeTabIndex, tabs.length - 1);
+      const isVertical = tabPosition === "left" || tabPosition === "right";
+      if (isVertical) {
+        const wrapper = container.createEl("div", { cls: "xyw-tab-v-wrapper" });
+        const tabBar = wrapper.createEl("div", { cls: "xyw-tab-bar-v" });
+        const tabContent = wrapper.createEl("div", { cls: "xyw-tab-content-v" });
+        this.buildTabs(tabBar, tabContent, tabs, childMap, config);
+      } else {
+        const tabBar = container.createEl("div", { cls: "xyw-tab-bar-h" });
+        const tabContent = container.createEl("div", { cls: "xyw-tab-content-h" });
+        tabContent.style.position = "relative";
+        tabContent.style.overflow = "auto";
+        this.buildTabs(tabBar, tabContent, tabs, childMap, config);
+      }
     }
   }
-  async buildTabs(tabBar, tabContent, children, config) {
-    this.activeIndex = Math.min(this.activeIndex, children.length - 1);
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
+  buildTabs(tabBar, tabContent, tabs, childMap, config) {
+    for (let i = 0; i < tabs.length; i++) {
+      const tab = tabs[i];
       const tabBtn = tabBar.createEl("div", {
-        cls: `xyw-card-title${i === this.activeIndex ? " xyw-tab-active" : ""}`,
-        text: child.title || child.name
+        cls: `xyw-card-title${i === this.activeTabIndex ? " xyw-tab-active" : ""}`,
+        text: tab.name
       });
       tabBtn.addEventListener("click", async () => {
-        this.activeIndex = i;
+        this.activeTabIndex = i;
         tabBar.querySelectorAll(".xyw-card-title").forEach((el, idx) => {
           el.toggleClass("xyw-tab-active", idx === i);
         });
+        this.destroyActiveWidgets();
         tabContent.empty();
-        await this.renderChildContent(tabContent, child, config);
+        await this.renderTabChildren(tabContent, tab, childMap, config);
       });
-      if (i === this.activeIndex) {
-        await this.renderChildContent(tabContent, child, config);
-      }
     }
+    this.renderTabChildren(tabContent, tabs[this.activeTabIndex], childMap, config);
   }
-  async renderChildContent(container, child, config) {
-    if (this.childWidget) {
-      this.childWidget.destroy();
-      this.childWidget = null;
-    }
-    const widget = createWidget(child.type);
-    if (widget) {
-      await widget.render(container, {
-        type: child.type,
-        title: "",
-        settings: child.settings,
-        style: child.style,
-        filters: child.filters,
-        sourcePath: config.sourcePath
-      });
-      this.childWidget = widget;
-    }
-  }
-  destroy() {
-    if (this.childWidget) {
-      this.childWidget.destroy();
-      this.childWidget = null;
-    }
-    this.tabContentEl = null;
-    this.activeIndex = 0;
-    super.destroy();
-  }
-};
-var ContainerTabHWidget = class extends BaseContainerTabWidget {
-  getType() {
-    return "container-tab-h";
-  }
-};
-var ContainerTabVWidget = class extends BaseContainerTabWidget {
-  getType() {
-    return "container-tab-v";
-  }
-};
-
-// src/widgets/built-in/ContainerFreeform.ts
-var ContainerFreeformWidget = class extends BaseWidget {
-  getType() {
-    return "container-freeform";
-  }
-  async renderContent(container, config) {
-    const children = config.children ?? [];
-    if (!children.length) {
-      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-children") });
-      return;
-    }
-    container.addClass("xyw-container-freeform");
-    container.style.position = "relative";
-    container.style.overflow = "auto";
-    const positions = config.settings?.childPositions ?? {};
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      const pos = positions[child.id ?? ""] ?? { x: 0, y: i * 25, w: 100, h: 25 };
+  async renderTabChildren(container, page, childMap, config) {
+    const children = page.children ?? [];
+    const positions = page.childPositions ?? {};
+    for (const childId of children) {
+      const child = childMap.get(childId);
+      if (!child)
+        continue;
+      const pos = positions[childId] ?? { x: DEFAULT_CHILD_X, y: DEFAULT_CHILD_Y, w: DEFAULT_CHILD_W, h: DEFAULT_CHILD_H };
       const cell = container.createEl("div", { cls: "xyw-container-cell xyw-freeform-cell" });
       cell.style.position = "absolute";
-      cell.style.left = pos.x + "%";
-      cell.style.top = pos.y + "%";
-      cell.style.width = pos.w + "%";
-      cell.style.height = pos.h + "%";
-      const widget = createWidget(child.type);
-      if (widget) {
-        await widget.render(cell, {
-          type: child.type,
-          title: child.title || "",
-          settings: child.settings,
-          children: child.children,
-          style: child.style,
-          filters: child.filters,
-          sourcePath: config.sourcePath
-        });
-      }
+      cell.style.left = pos.x + "px";
+      cell.style.top = pos.y + "px";
+      const pr = config.style?.containerPaddingRight;
+      cell.style.width = pr ? `calc(${pos.w}% - ${pos.x}px - ${pr})` : `calc(${pos.w}% - ${pos.x}px)`;
+      cell.style.height = pos.h + "px";
+      const widget = await this.renderChildWidget(cell, child, config.sourcePath);
+      if (widget)
+        this.activeWidgets.push(widget);
+    }
+    if (!config.style?.height) {
+      const maxBottom = Math.max(10, ...children.map((id) => {
+        const p = positions[id];
+        return p ? p.y + p.h : 0;
+      }));
+      container.style.height = `${maxBottom}px`;
+    }
+    if (config.style?.containerPaddingRight) {
+      container.style.paddingRight = config.style.containerPaddingRight;
     }
   }
 };
@@ -1233,7 +1148,7 @@ var BacklinksWidget = class extends BaseWidget {
     const app = window.app;
     const activeFile = app.workspace.getActiveFile();
     if (!activeFile) {
-      container.createEl("div", { cls: "xyw-empty", text: "No active file" });
+      container.createEl("div", { cls: "xyw-empty", text: t("msg-no-active-file") });
       return;
     }
     const resolvedLinks = app.metadataCache.resolvedLinks ?? {};
@@ -1392,6 +1307,18 @@ var LabelWidget = class extends BaseWidget {
 
 // src/modals/ChildEditorModal.ts
 var import_obsidian4 = require("obsidian");
+
+// src/utils/FocusManager.ts
+var FocusManager = class {
+  static restoreEditorFocus(app) {
+    const view = app.workspace.activeLeaf?.view;
+    if (view && "editor" in view) {
+      view.editor.focus();
+    }
+  }
+};
+
+// src/modals/ChildEditorModal.ts
 var CommandPickerModal = class extends import_obsidian4.FuzzySuggestModal {
   constructor(app, onChooseCmd) {
     super(app);
@@ -1750,8 +1677,6 @@ var ChildEditorModal = class extends import_obsidian4.Modal {
         this.editingStyle.borderColor = v;
       });
     });
-    this.renderPercentSetting(card, t("style-width"), "width");
-    this.renderPercentSetting(card, t("style-height"), "height");
     new import_obsidian4.Setting(card).setName(t("style-card")).addDropdown((dd) => {
       dd.addOption("none", t("card-none"));
       dd.addOption("default", t("card-default"));
@@ -1774,35 +1699,6 @@ var ChildEditorModal = class extends import_obsidian4.Modal {
         if (!this.editingStyle)
           this.editingStyle = {};
         this.editingStyle.contentStyle = v;
-      });
-    });
-    this.renderPaddingSetting(card, t("style-padding-top") + "\uFF08px\uFF09", "paddingTop");
-    this.renderPaddingSetting(card, t("style-padding-bottom") + "\uFF08px\uFF09", "paddingBottom");
-    this.renderPaddingSetting(card, t("style-padding-left") + "\uFF08px\uFF09", "paddingLeft");
-    this.renderPaddingSetting(card, t("style-padding-right") + "\uFF08px\uFF09", "paddingRight");
-  }
-  renderPercentSetting(card, label, prop) {
-    new import_obsidian4.Setting(card).setName(label).addText((tc) => {
-      tc.inputEl.type = "number";
-      tc.inputEl.placeholder = "100";
-      const raw = this.editingStyle?.[prop] ?? "";
-      tc.setValue(raw.endsWith("%") ? raw.slice(0, -1) : "");
-      tc.onChange((v) => {
-        if (!this.editingStyle)
-          this.editingStyle = {};
-        this.editingStyle[prop] = v ? `${v}%` : "";
-      });
-    });
-  }
-  renderPaddingSetting(card, label, prop) {
-    new import_obsidian4.Setting(card).setName(label).addText((tc) => {
-      tc.inputEl.type = "number";
-      tc.inputEl.placeholder = "\u9ED8\u8BA4";
-      tc.setValue(this.editingStyle?.[prop]?.replace(/px$/, "") ?? "");
-      tc.onChange((v) => {
-        if (!this.editingStyle)
-          this.editingStyle = {};
-        this.editingStyle[prop] = v ? `${v}px` : "";
       });
     });
   }
@@ -1898,6 +1794,7 @@ var ChildEditorModal = class extends import_obsidian4.Modal {
     }
   }
   onClose() {
+    FocusManager.restoreEditorFocus(this.app);
     this.contentEl.empty();
     if (this.resolve)
       this.resolve(this.result);
@@ -1913,8 +1810,15 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
     this.store = store;
     this.editId = editId;
     this.onSaved = onSaved;
+    this.tabs = [];
+    this.activeTabIdx = 0;
+    this.showTabs = false;
+    this.tabPosition = "top";
     this.freeformPositions = {};
     this.freeformPreviewEl = null;
+    this.freeformAutoHeight = true;
+    this.heightInputEl = null;
+    this.editingStyle = {};
   }
   onOpen() {
     const { contentEl } = this;
@@ -1922,86 +1826,110 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
     contentEl.addClass("xyw-editor-modal");
     const existing = this.editId ? this.store.getWidget(this.editId) : null;
     const isNew = !existing;
-    if (existing?.settings?.childPositions) {
-      this.freeformPositions = JSON.parse(JSON.stringify(existing.settings.childPositions));
+    if (existing?.settings?.tabs) {
+      this.tabs = JSON.parse(JSON.stringify(existing.settings.tabs ?? []));
+      this.showTabs = existing.settings.showTabs ?? false;
+      this.tabPosition = existing.settings.tabPosition ?? "top";
     } else {
-      this.freeformPositions = {};
+      const flatChildren = existing?.children ? [...existing.children] : [];
+      const flatPositions = existing?.settings?.childPositions ? JSON.parse(JSON.stringify(existing.settings.childPositions)) : {};
+      this.tabs = [{ name: t("tab-default-name").replace("{n}", "1"), children: flatChildren, childPositions: flatPositions }];
+      this.showTabs = false;
+      this.tabPosition = "top";
     }
-    this.freeformPreviewEl = null;
+    if (!this.tabs.length) {
+      this.tabs = [{ name: t("tab-default-name").replace("{n}", "1"), children: [], childPositions: {} }];
+    }
+    this.activeTabIdx = 0;
     let name = existing?.name ?? "";
-    let type = existing?.type ?? "container-row";
-    let children = existing?.children ? [...existing.children] : [];
     let editingSettings = existing?.settings ? { ...existing.settings } : {};
     const editingStyle = existing?.style ? JSON.parse(JSON.stringify(existing.style)) : {};
+    this.editingStyle = editingStyle;
+    this.freeformAutoHeight = !editingStyle.height;
+    const saveActivePositions = () => {
+      if (this.tabs[this.activeTabIdx]) {
+        this.tabs[this.activeTabIdx].childPositions = JSON.parse(JSON.stringify(this.freeformPositions));
+      }
+    };
+    const syncPositionsFromTab = () => {
+      const p = this.tabs[this.activeTabIdx]?.childPositions;
+      this.freeformPositions = p ? JSON.parse(JSON.stringify(p)) : {};
+    };
+    syncPositionsFromTab();
     const renderFull = () => {
+      saveActivePositions();
       contentEl.empty();
       contentEl.addClass("xyw-editor-modal");
       new import_obsidian5.Setting(contentEl).setName(t("label-name")).addText((tc) => tc.setValue(name).onChange((v) => {
         name = v;
       }));
-      const headerRow = contentEl.createEl("div", { cls: "xyw-section-header" });
-      headerRow.createEl("h3", { text: t("label-widget-list") });
-      new import_obsidian5.Setting(headerRow).setName(t("label-layout-type")).addDropdown((dd) => {
-        for (const m of getAllWidgetMetas()) {
-          if (isContainerType(m.type)) {
-            dd.addOption(m.type, t(`type-${m.type}`));
-          }
+      new import_obsidian5.Setting(contentEl).setName(t("label-show-tabs")).addToggle((tc) => tc.setValue(this.showTabs).onChange((v) => {
+        this.showTabs = v;
+        renderFull();
+      }));
+      if (this.showTabs) {
+        new import_obsidian5.Setting(contentEl).setName(t("label-tab-position")).addDropdown((dd) => {
+          dd.addOption("top", t("tab-position-top"));
+          dd.addOption("left", t("tab-position-left"));
+          dd.addOption("right", t("tab-position-right"));
+          dd.addOption("bottom", t("tab-position-bottom"));
+          dd.setValue(this.tabPosition);
+          dd.onChange((v) => {
+            this.tabPosition = v;
+          });
+        });
+        const tabBarRow = contentEl.createEl("div", { cls: "xyw-tab-editor-bar" });
+        for (let i = 0; i < this.tabs.length; i++) {
+          const tabBtn = tabBarRow.createEl("div", {
+            cls: `xyw-tab-editor-btn${i === this.activeTabIdx ? " xyw-tab-editor-active" : ""}`,
+            text: this.tabs[i].name
+          });
+          tabBtn.addEventListener("click", () => {
+            this.activeTabIdx = i;
+            syncPositionsFromTab();
+            renderFull();
+          });
         }
-        dd.setValue(type);
-        dd.onChange((v) => {
-          type = v;
-          if (type === "container-freeform") {
-            if (!editingStyle.height)
-              editingStyle.height = "400px";
-          }
+        new import_obsidian5.ButtonComponent(tabBarRow).setIcon("plus").setTooltip(t("btn-add-tab")).onClick(() => {
+          const n = this.tabs.length + 1;
+          this.tabs.push({ name: t("tab-default-name").replace("{n}", String(n)), children: [], childPositions: {} });
+          this.activeTabIdx = this.tabs.length - 1;
+          syncPositionsFromTab();
           renderFull();
         });
-      });
+        if (this.tabs.length > 1) {
+          const tabActions = contentEl.createEl("div", { cls: "xyw-tab-editor-actions" });
+          const activeTab = this.tabs[this.activeTabIdx];
+          new import_obsidian5.Setting(tabActions).setName(t("btn-rename")).addText((tc) => tc.setValue(activeTab.name).onChange((v) => {
+            activeTab.name = v;
+          }));
+          new import_obsidian5.ButtonComponent(tabActions).setButtonText(t("btn-delete")).onClick(() => {
+            this.tabs.splice(this.activeTabIdx, 1);
+            if (this.activeTabIdx >= this.tabs.length)
+              this.activeTabIdx = this.tabs.length - 1;
+            syncPositionsFromTab();
+            renderFull();
+          });
+        }
+      }
+      const children = this.tabs[this.activeTabIdx]?.children ?? [];
       const listEl = contentEl.createEl("div", { cls: "xyw-child-list" });
       const emptyEl = contentEl.createEl("p", { cls: "xyw-empty-state", text: t("msg-no-children") });
-      const isFreeform = type === "container-freeform";
       const refreshList = () => {
         listEl.empty();
         emptyEl.style.display = children.length ? "none" : "";
         for (let i = 0; i < children.length; i++) {
-          this.renderChildCard(listEl, children, i, refreshList, isFreeform);
+          this.renderChildCard(listEl, children, i, refreshList);
         }
       };
       refreshList();
-      if (type === "container-freeform") {
-        this.ensureFreeformPositions(children);
-        contentEl.createEl("h3", { text: t("freeform-preview") });
-        this.freeformPreviewEl = contentEl.createEl("div", { cls: "xyw-freeform-preview" });
-        const previewHeight = parseInt(editingStyle.height ?? "400") || 400;
-        this.renderFreeformPreview(this.freeformPreviewEl, children, previewHeight);
-      }
+      contentEl.createEl("h3", { text: t("freeform-preview") });
+      this.freeformPreviewEl = contentEl.createEl("div", { cls: "xyw-freeform-preview" });
+      const previewHeight = this.freeformAutoHeight ? parseInt(this.calcFreeformHeight()) || 400 : parseInt(editingStyle.height ?? "400") || 400;
+      this.renderFreeformPreview(this.freeformPreviewEl, children, previewHeight);
       const styleSection = contentEl.createEl("div", { cls: "xyw-style-section" });
       styleSection.createEl("h3", { text: t("style-content") });
-      if (type === "container-freeform") {
-        const hint = styleSection.createEl("div", { cls: "xyw-freeform-hint", text: t("freeform-hint") });
-      }
-      if (type !== "container-freeform") {
-        new import_obsidian5.Setting(styleSection).setName(t("style-content-align")).addDropdown((dd) => {
-          dd.addOption("stretch", t("align-stretch"));
-          dd.addOption("left", t("style-align-left"));
-          dd.addOption("center", t("style-align-center"));
-          dd.addOption("right", t("style-align-right"));
-          dd.setValue(editingSettings.hAlign ?? "stretch");
-          dd.onChange((v) => {
-            editingSettings.hAlign = v;
-          });
-        });
-        new import_obsidian5.Setting(styleSection).setName(t("style-content-valign")).addDropdown((dd) => {
-          dd.addOption("stretch", t("align-stretch"));
-          dd.addOption("top", t("valign-top"));
-          dd.addOption("middle", t("valign-middle"));
-          dd.addOption("bottom", t("valign-bottom"));
-          dd.setValue(editingSettings.vAlign ?? "stretch");
-          dd.onChange((v) => {
-            editingSettings.vAlign = v;
-          });
-        });
-      }
+      const hint = styleSection.createEl("div", { cls: "xyw-freeform-hint", text: t("freeform-hint") });
       new import_obsidian5.Setting(styleSection).setName(t("style-border-color")).addText((tc) => {
         tc.inputEl.type = "color";
         tc.setValue(editingStyle?.borderColor ?? "").onChange((v) => {
@@ -2009,86 +1937,60 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
             editingStyle.borderColor = v;
         });
       });
-      const parseSize = (val) => {
-        if (!val)
+      const hParsed = (() => {
+        if (!editingStyle?.height)
           return { num: "", unit: "px" };
-        const m = val.match(/^([\d.]+)\s*(px|%|em|rem|vw|vh)?$/);
-        return m ? { num: m[1], unit: m[2] || "px" } : { num: val, unit: "" };
-      };
-      const wParsed = parseSize(editingStyle?.width);
-      new import_obsidian5.Setting(styleSection).setName(t("style-width")).addText((tc) => {
-        tc.inputEl.type = "number";
-        tc.inputEl.placeholder = "auto";
-        tc.setValue(wParsed.num);
-        tc.onChange((v) => {
-          if (!editingStyle)
-            return;
-          const unit = (editingStyle.width ?? "").replace(/^[\d.]+/, "") || "px";
-          editingStyle.width = v ? `${v}${unit}` : "";
-        });
-      }).addDropdown((dd) => {
-        const units = ["px", "%", "em", "rem", "vw", "vh"];
-        for (const u of units)
-          dd.addOption(u, u);
-        dd.setValue(wParsed.unit);
-        dd.onChange((v) => {
-          if (!editingStyle)
-            return;
-          const num = (editingStyle.width ?? "").replace(/[^\d.]+/g, "");
-          editingStyle.width = num ? `${num}${v}` : "";
-        });
-      });
-      const hParsed = parseSize(editingStyle?.height);
+        const m = editingStyle.height.match(/^([\d.]+)\s*(px|%|em|rem|vw|vh)?$/);
+        return m ? { num: m[1], unit: m[2] || "px" } : { num: editingStyle.height, unit: "" };
+      })();
+      this.heightInputEl = null;
       new import_obsidian5.Setting(styleSection).setName(t("style-height")).addText((tc) => {
         tc.inputEl.type = "number";
-        tc.inputEl.placeholder = "auto";
-        tc.setValue(hParsed.num);
+        tc.inputEl.placeholder = this.freeformAutoHeight ? `auto (${this.calcFreeformHeight().replace(/px$/, "")})` : "auto";
+        tc.setValue(this.freeformAutoHeight ? "" : hParsed.num);
+        this.heightInputEl = tc.inputEl;
         tc.onChange((v) => {
           if (!editingStyle)
             return;
-          const unit = (editingStyle.height ?? "").replace(/^[\d.]+/, "") || "px";
-          editingStyle.height = v ? `${v}${unit}` : "";
+          editingStyle.height = v ? `${v}px` : "";
+          this.freeformAutoHeight = !v;
+          if (this.freeformPreviewEl)
+            this.freeformPreviewEl.style.height = v ? `${v}px` : this.calcFreeformHeight();
+          if (!v && this.heightInputEl)
+            this.heightInputEl.placeholder = `auto (${this.calcFreeformHeight().replace(/px$/, "")})`;
         });
       }).addDropdown((dd) => {
-        const units = ["px", "%", "em", "rem", "vw", "vh"];
-        for (const u of units)
-          dd.addOption(u, u);
-        dd.setValue(hParsed.unit);
-        dd.onChange((v) => {
+        dd.addOption("px", "px");
+        dd.setValue("px");
+      });
+      new import_obsidian5.Setting(styleSection).setName(t("style-container-padding-right")).addText((tc) => {
+        tc.inputEl.type = "number";
+        tc.inputEl.placeholder = "0";
+        tc.setValue(editingStyle?.containerPaddingRight?.replace(/px$/, "") ?? "");
+        tc.onChange((v) => {
           if (!editingStyle)
             return;
-          const num = (editingStyle.height ?? "").replace(/[^\d.]+/g, "");
-          editingStyle.height = num ? `${num}${v}` : "";
+          editingStyle.containerPaddingRight = v ? `${v}px` : "";
         });
+      }).addDropdown((dd) => {
+        dd.addOption("px", "px");
+        dd.setValue("px");
       });
-      const setPad = (key, label) => {
-        new import_obsidian5.Setting(styleSection).setName(label).addText((tc) => {
-          tc.inputEl.type = "number";
-          tc.inputEl.placeholder = "\u9ED8\u8BA4";
-          tc.setValue((editingStyle[key] ?? "").replace(/px$/, ""));
-          tc.onChange((v) => {
-            editingStyle[key] = v ? `${v}px` : "";
-          });
-        });
-      };
-      setPad("paddingTop", t("style-padding-top") + "\uFF08px\uFF09");
-      setPad("paddingBottom", t("style-padding-bottom") + "\uFF08px\uFF09");
-      setPad("paddingLeft", t("style-padding-left") + "\uFF08px\uFF09");
-      setPad("paddingRight", t("style-padding-right") + "\uFF08px\uFF09");
       const bottomRow = contentEl.createEl("div", { cls: "xyw-bottom-row" });
       const leftGroup = bottomRow.createEl("div", { cls: "xyw-bottom-left" });
-      new import_obsidian5.ButtonComponent(leftGroup).setButtonText("\u65B0\u5EFA").setCta().onClick(async () => {
+      new import_obsidian5.ButtonComponent(leftGroup).setButtonText(t("btn-new-widget")).setCta().onClick(async () => {
         const modal = new ChildEditorModal(this.app, this.store, null);
         const id = await modal.openAndGet();
         if (id) {
           children.push(id);
+          refreshList();
           renderFull();
         }
       });
-      new import_obsidian5.ButtonComponent(leftGroup).setButtonText("\u5F15\u7528").onClick((event) => {
+      new import_obsidian5.ButtonComponent(leftGroup).setButtonText(t("btn-insert-ref")).onClick((event) => {
         const leaves = this.store.getLeafWidgets();
         if (leaves.length === 0) {
-          new import_obsidian5.Notice("\u6682\u65E0\u53F6\u5B50");
+          new import_obsidian5.Notice(t("msg-no-leaf-widgets"));
           return;
         }
         const menu = new import_obsidian5.Menu();
@@ -2097,16 +1999,17 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
             item.setTitle(`${leaf.name} (${t(`type-${leaf.type}`)})`);
             item.onClick(() => {
               children.push(leaf.id);
+              refreshList();
               renderFull();
             });
           });
         }
         menu.showAtMouseEvent(event);
       });
-      new import_obsidian5.ButtonComponent(leftGroup).setButtonText("\u590D\u5236").onClick((event) => {
+      new import_obsidian5.ButtonComponent(leftGroup).setButtonText(t("btn-duplicate")).onClick((event) => {
         const leaves = this.store.getLeafWidgets();
         if (leaves.length === 0) {
-          new import_obsidian5.Notice("\u6682\u65E0\u53F6\u5B50");
+          new import_obsidian5.Notice(t("msg-no-leaf-widgets"));
           return;
         }
         const menu = new import_obsidian5.Menu();
@@ -2122,6 +2025,7 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
                 delete copy.updatedAt;
                 const saved = await this.store.addWidget(copy);
                 children.push(saved.id);
+                refreshList();
                 renderFull();
               }
             });
@@ -2132,17 +2036,35 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
       const rightGroup = bottomRow.createEl("div", { cls: "xyw-bottom-right" });
       new import_obsidian5.ButtonComponent(rightGroup).setButtonText(t("btn-save")).setCta().onClick(async () => {
         if (!name.trim()) {
-          new import_obsidian5.Notice("Name is required");
+          new import_obsidian5.Notice(t("msg-name-required"));
           return;
         }
-        const data = { name: name.trim(), type, children };
-        if (editingStyle && Object.keys(editingStyle).length > 0)
-          data.style = editingStyle;
-        if (type === "container-freeform") {
-          data.settings = { ...editingSettings, childPositions: this.freeformPositions };
-        } else {
-          data.settings = editingSettings;
+        const allChildren = [];
+        for (const tab of this.tabs) {
+          for (const cid of tab.children) {
+            if (!allChildren.includes(cid))
+              allChildren.push(cid);
+          }
         }
+        const activeTab = this.tabs[this.activeTabIdx];
+        activeTab.childPositions = JSON.parse(JSON.stringify(this.freeformPositions));
+        const data = {
+          name: name.trim(),
+          type: "container",
+          children: allChildren,
+          settings: {
+            ...editingSettings,
+            showTabs: this.showTabs,
+            tabPosition: this.tabPosition,
+            tabs: this.tabs,
+            _freeformVersion: 2
+          }
+        };
+        const styleToSave = editingStyle ? { ...editingStyle } : void 0;
+        if (styleToSave && this.freeformAutoHeight)
+          delete styleToSave.height;
+        if (styleToSave && Object.keys(styleToSave).length > 0)
+          data.style = styleToSave;
         if (isNew) {
           const saved = await this.store.addWidget(data);
           new import_obsidian5.Notice(t("btn-save"));
@@ -2158,7 +2080,8 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
     };
     renderFull();
   }
-  renderChildCard(listEl, children, index, onRefresh, isFreeform) {
+  // ── Child card rendering ──
+  renderChildCard(listEl, children, index, onRefresh) {
     const childId = children[index];
     const childDef = this.store.getWidget(childId);
     const card = listEl.createEl("div", { cls: "xyw-child-card-simple" });
@@ -2203,6 +2126,18 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
         delete copy.updatedAt;
         this.store.addWidget(copy).then((saved) => {
           children.splice(index + 1, 0, saved.id);
+          const origPos = this.freeformPositions[childDef.id];
+          if (origPos) {
+            const pw = this.freeformPreviewEl?.clientWidth ?? 600;
+            const ph = this.freeformPreviewEl?.clientHeight ?? 400;
+            const origWpx = origPos.w / 100 * pw;
+            this.freeformPositions[saved.id] = {
+              x: Math.min(pw - origWpx, origPos.x + 20),
+              y: Math.min(ph - origPos.h, origPos.y + 20),
+              w: origPos.w,
+              h: origPos.h
+            };
+          }
           onRefresh();
         });
       }
@@ -2220,49 +2155,106 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
       children.splice(index, 1);
       onRefresh();
     });
-    if (isFreeform && childDef) {
-      const pos = this.freeformPositions[childId] ?? { x: 0, y: index * 25, w: 100, h: 25 };
+    if (childDef) {
+      const pos = this.freeformPositions[childId] ?? { x: DEFAULT_CHILD_X, y: DEFAULT_CHILD_Y, w: DEFAULT_CHILD_W, h: DEFAULT_CHILD_H };
       this.freeformPositions[childId] = pos;
       const posRow = card.createEl("div", { cls: "xyw-freeform-pos-inputs" });
       posRow.setAttribute("data-child-id", childId);
+      const UNIT = { x: "px", y: "px", w: "%", h: "px" };
       const createPosInput = (labelKey, key, min, max, defaultVal) => {
         const lbl = posRow.createEl("label");
         lbl.textContent = t(labelKey);
         const inp = lbl.createEl("input", { type: "number", attr: { min: String(min), max: String(max) } });
         inp.value = String(Math.round(pos[key]));
-        inp.addEventListener("change", () => {
+        lbl.createSpan({ text: UNIT[key] });
+        inp.addEventListener("input", () => {
           const raw = inp.value === "" ? defaultVal : Number(inp.value);
           pos[key] = Math.max(min, Math.min(max, raw));
+          const children2 = this.tabs[this.activeTabIdx]?.children ?? [];
+          const pw = this.freeformPreviewEl?.clientWidth ?? 600;
+          const ph = this.freeformPreviewEl?.clientHeight ?? 400;
+          this.resolveOverlap(childId, pos, children2, pw, ph);
           inp.value = String(Math.round(pos[key]));
           if (this.freeformPreviewEl)
-            this.renderFreeformPreview(this.freeformPreviewEl, children);
+            this.renderFreeformPreview(this.freeformPreviewEl, children2);
+          this.syncFreeformHeight();
         });
         return inp;
       };
-      createPosInput("freeform-x", "x", 0, 100, 0);
-      createPosInput("freeform-y", "y", 0, 100, 0);
-      createPosInput("freeform-w", "w", 5, 100, 100);
-      createPosInput("freeform-h", "h", 5, 100, 25);
+      createPosInput("freeform-x", "x", 0, 99999, 10);
+      createPosInput("freeform-y", "y", 0, 99999, 10);
+      createPosInput("freeform-w", "w", 0, 100, 100);
+      createPosInput("freeform-h", "h", 0, 99999, 15);
     }
   }
-  ensureFreeformPositions(children) {
-    for (let i = 0; i < children.length; i++) {
-      const id = children[i];
+  // ── Overlap / position utilities ──
+  overlaps(a, b, cw) {
+    const aw = a.w / 100 * cw;
+    const bw = b.w / 100 * cw;
+    return a.x < b.x + bw && a.x + aw > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+  resolveOverlap(selfId, pos, children, cw, ch) {
+    for (let iter = 0; iter < 5; iter++) {
+      let anyOverlap = false;
+      for (const childId of children) {
+        if (childId === selfId)
+          continue;
+        const cp = this.freeformPositions[childId];
+        if (!cp)
+          continue;
+        if (!this.overlaps(pos, cp, cw))
+          continue;
+        anyOverlap = true;
+        const cpw = cp.w / 100 * cw;
+        const pw = pos.w / 100 * cw;
+        const rightX = cp.x + cpw;
+        if (rightX + pw <= cw) {
+          pos.x = rightX;
+          continue;
+        }
+        const leftX = cp.x - pw;
+        if (leftX >= 0) {
+          pos.x = leftX;
+          continue;
+        }
+        const downY = cp.y + cp.h;
+        pos.y = downY;
+        if (pos.x + pw > cw) {
+          pos.w = (cw - pos.x) / cw * 100;
+        }
+      }
+      if (!anyOverlap)
+        break;
+    }
+  }
+  ensurePositions(children) {
+    for (const id of children) {
       if (!this.freeformPositions[id]) {
-        this.freeformPositions[id] = { x: 0, y: i * 25, w: 100, h: 25 };
+        this.freeformPositions[id] = { x: DEFAULT_CHILD_X, y: DEFAULT_CHILD_Y, w: DEFAULT_CHILD_W, h: DEFAULT_CHILD_H };
       }
     }
+  }
+  calcFreeformHeight() {
+    const positions = Object.values(this.freeformPositions);
+    if (!positions.length)
+      return "400px";
+    const maxBottom = Math.max(...positions.map((p) => p.y + p.h));
+    if (maxBottom <= 0)
+      return "400px";
+    const height = Math.max(10, Math.ceil(maxBottom));
+    return `${height}px`;
   }
   renderFreeformPreview(previewEl, children, containerHeight) {
     previewEl.empty();
     if (!children.length)
       return;
+    this.ensurePositions(children);
     const height = containerHeight ?? (parseInt(previewEl.style.height) || 400);
     previewEl.style.height = height + "px";
     for (let i = 0; i < children.length; i++) {
       const childId = children[i];
       const childDef = this.store.getWidget(childId);
-      const pos = this.freeformPositions[childId] ?? { x: 0, y: i * 25, w: 100, h: 25 };
+      const pos = this.freeformPositions[childId] ?? { x: DEFAULT_CHILD_X, y: DEFAULT_CHILD_Y, w: DEFAULT_CHILD_W, h: DEFAULT_CHILD_H };
       this.freeformPositions[childId] = pos;
       const block = previewEl.createEl("div", { cls: "xyw-freeform-preview-block" });
       block.textContent = childDef?.name ?? `#${i + 1}`;
@@ -2288,21 +2280,32 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
         const onMove = (ev) => {
           if (!dragData)
             return;
-          const dx = (ev.clientX - dragData.startX) / cw * 100;
-          const dy = (ev.clientY - dragData.startY) / ch * 100;
-          pos.x = Math.max(0, Math.min(100 - pos.w, dragData.origX + dx));
-          pos.y = Math.max(0, Math.min(100 - pos.h, dragData.origY + dy));
+          const dx = ev.clientX - dragData.startX;
+          const dy = ev.clientY - dragData.startY;
+          pos.x = Math.max(0, Math.min(cw - pos.w / 100 * cw, dragData.origX + dx));
+          pos.y = Math.max(0, Math.min(ch - pos.h, dragData.origY + dy));
+          this.resolveOverlap(childId, pos, children, cw, ch);
+          dragData.origX = pos.x;
+          dragData.origY = pos.y;
+          dragData.startX = ev.clientX;
+          dragData.startY = ev.clientY;
           this.updatePreviewBlockStyle(block, pos);
           this.syncFreeformInputs(childId, pos);
+          this.syncFreeformHeight();
         };
         const onUp = () => {
+          cleanUp();
+        };
+        const cleanUp = () => {
           document.removeEventListener("mousemove", onMove);
           document.removeEventListener("mouseup", onUp);
+          window.removeEventListener("blur", cleanUp);
           block.removeClass("xyw-dragging");
           dragData = null;
         };
         document.addEventListener("mousemove", onMove);
         document.addEventListener("mouseup", onUp);
+        window.addEventListener("blur", cleanUp);
       });
       const resizeHandle = block.createEl("div", { cls: "xyw-freeform-resize-handle" });
       resizeHandle.addEventListener("mousedown", (e) => {
@@ -2312,32 +2315,63 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
         const ch = previewEl.clientHeight;
         if (!cw || !ch)
           return;
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const origW = pos.w;
-        const origH = pos.h;
+        let startX = e.clientX, startY = e.clientY;
+        let origW = pos.w, origH = pos.h;
         const onMove = (ev) => {
-          const dx = (ev.clientX - startX) / cw * 100;
-          const dy = (ev.clientY - startY) / ch * 100;
-          pos.w = Math.max(5, Math.min(100 - pos.x, origW + dx));
-          pos.h = Math.max(5, Math.min(100 - pos.y, origH + dy));
+          const dw = (ev.clientX - startX) / cw * 100;
+          const dy = ev.clientY - startY;
+          pos.w = Math.max(0, Math.min(100 - pos.x / cw * 100, origW + dw));
+          pos.h = Math.max(0, Math.min(ch - pos.y, origH + dy));
+          for (const otherId of children) {
+            if (otherId === childId)
+              continue;
+            const cp = this.freeformPositions[otherId];
+            if (!cp || !this.overlaps(pos, cp, cw))
+              continue;
+            if (pos.x < cp.x)
+              pos.w = Math.min(pos.w, (cp.x - pos.x) / cw * 100);
+            if (pos.y < cp.y)
+              pos.h = Math.min(pos.h, cp.y - pos.y);
+          }
+          pos.w = Math.max(0, pos.w);
+          pos.h = Math.max(0, pos.h);
+          origW = pos.w;
+          origH = pos.h;
+          startX = ev.clientX;
+          startY = ev.clientY;
           this.updatePreviewBlockStyle(block, pos);
           this.syncFreeformInputs(childId, pos);
+          this.syncFreeformHeight();
         };
         const onUp = () => {
+          cleanUp();
+        };
+        const cleanUp = () => {
           document.removeEventListener("mousemove", onMove);
           document.removeEventListener("mouseup", onUp);
+          window.removeEventListener("blur", cleanUp);
         };
         document.addEventListener("mousemove", onMove);
         document.addEventListener("mouseup", onUp);
+        window.addEventListener("blur", cleanUp);
       });
     }
   }
   updatePreviewBlockStyle(block, pos) {
-    block.style.left = pos.x + "%";
-    block.style.top = pos.y + "%";
+    block.style.left = pos.x + "px";
+    block.style.top = pos.y + "px";
     block.style.width = pos.w + "%";
-    block.style.height = pos.h + "%";
+    block.style.height = pos.h + "px";
+  }
+  syncFreeformHeight() {
+    if (!this.freeformAutoHeight)
+      return;
+    const height = this.calcFreeformHeight();
+    const num = height.replace(/px$/, "");
+    if (this.heightInputEl)
+      this.heightInputEl.placeholder = `auto (${num})`;
+    if (this.freeformPreviewEl)
+      this.freeformPreviewEl.style.height = height;
   }
   syncFreeformInputs(childId, pos) {
     const posRow = this.contentEl.querySelector(`.xyw-freeform-pos-inputs[data-child-id="${childId}"]`);
@@ -2352,6 +2386,7 @@ var WidgetEditorModal = class extends import_obsidian5.Modal {
     }
   }
   onClose() {
+    FocusManager.restoreEditorFocus(this.app);
     this.contentEl.empty();
   }
 };
@@ -2362,17 +2397,23 @@ var CodeBlockRenderer = class {
   constructor(store, plugin) {
     this.activeInstances = /* @__PURE__ */ new Set();
     this.containerMap = /* @__PURE__ */ new Map();
+    this.sourceMap = /* @__PURE__ */ new Map();
     this.cleanupFns = [];
     this.store = store;
     this.plugin = plugin;
     this.setupAutoRefresh();
   }
   setupAutoRefresh() {
+    let debounceTimer = null;
     const refreshAll = () => {
-      for (const widget of this.activeInstances) {
-        widget.refresh().catch(() => {
-        });
-      }
+      if (debounceTimer)
+        clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        for (const [container, info] of this.sourceMap) {
+          this.render(info.source, container, info.sourcePath).catch(() => {
+          });
+        }
+      }, 500);
     };
     const vault = this.plugin.app.vault;
     const events = [
@@ -2380,7 +2421,13 @@ var CodeBlockRenderer = class {
       vault.on("delete", refreshAll),
       vault.on("create", refreshAll)
     ];
-    this.cleanupFns = events.map((evt) => () => vault.offref(evt));
+    this.cleanupFns = [
+      ...events.map((evt) => () => vault.offref(evt)),
+      () => {
+        if (debounceTimer)
+          clearTimeout(debounceTimer);
+      }
+    ];
   }
   destroy() {
     for (const cleanup of this.cleanupFns)
@@ -2389,6 +2436,7 @@ var CodeBlockRenderer = class {
       widget.destroy();
     this.activeInstances.clear();
     this.containerMap.clear();
+    this.sourceMap.clear();
     this.cleanupFns = [];
   }
   resolveChildren(ids) {
@@ -2417,6 +2465,10 @@ var CodeBlockRenderer = class {
       container.createEl("div", { cls: "xyw-error", text: `Widget "${data.id}" not found. Create it in settings first.` });
       return;
     }
+    if (renderingStack.has(def.id)) {
+      container.createEl("div", { cls: "xyw-error", text: `Cycle detected: widget "${def.id}" is already being rendered` });
+      return;
+    }
     const widget = createWidget(def.type);
     if (!widget) {
       container.createEl("div", { cls: "xyw-error", text: `Unknown widget type: ${def.type}` });
@@ -2433,19 +2485,26 @@ var CodeBlockRenderer = class {
         Object.assign(mergedSettings, data.settings);
       }
       const resolvedChildren = this.resolveChildren(def.children);
-      await widget.render(container, {
-        type: def.type,
-        title: data.title || def.title || "",
-        settings: mergedSettings,
-        children: resolvedChildren,
-        style: def.style,
-        filters: def.filters,
-        sourcePath
-      });
+      renderingStack.add(def.id);
+      try {
+        await widget.render(container, {
+          type: def.type,
+          title: data.title || def.title || "",
+          settings: mergedSettings,
+          children: resolvedChildren,
+          style: def.style,
+          filters: def.filters,
+          sourcePath
+        });
+      } finally {
+        renderingStack.delete(def.id);
+      }
       this.activeInstances.add(widget);
       this.containerMap.set(container, widget);
+      this.sourceMap.set(container, { source, sourcePath });
     } catch (e) {
       container.empty();
+      this.sourceMap.delete(container);
       const message = e instanceof Error ? e.message : String(e);
       container.createEl("div", { cls: "xyw-error", text: `Render error: ${message}` });
     }
@@ -2603,6 +2662,7 @@ var WidgetPickerModal = class extends import_obsidian7.Modal {
     });
   }
   onClose() {
+    FocusManager.restoreEditorFocus(this.app);
     this.contentEl.empty();
   }
 };
@@ -2636,6 +2696,10 @@ var WidgetSettingTab = class extends import_obsidian8.PluginSettingTab {
     this.store = store;
     this.filterText = "";
     this.contentDiv = null;
+  }
+  hide() {
+    super.hide();
+    FocusManager.restoreEditorFocus(this.app);
   }
   display() {
     const { containerEl } = this;
@@ -2685,6 +2749,7 @@ var WidgetSettingTab = class extends import_obsidian8.PluginSettingTab {
     });
     this.contentDiv = containerEl.createEl("div");
     this.renderContent();
+    searchInput.focus();
   }
   renderContent() {
     if (!this.contentDiv)
@@ -2704,7 +2769,7 @@ var WidgetSettingTab = class extends import_obsidian8.PluginSettingTab {
     if (containers.length > 0) {
       const containerHeader = this.contentDiv.createEl("div", { cls: "xyw-section-header" });
       containerHeader.createEl("h3", { text: `\u{1F4E6} ${t("label-container")}` });
-      new import_obsidian8.ButtonComponent(containerHeader).setButtonText("\u65B0\u5EFA").setCta().onClick(() => {
+      new import_obsidian8.ButtonComponent(containerHeader).setButtonText(t("btn-new-container")).setCta().onClick(() => {
         new WidgetEditorModal(this.app, this.plugin, this.store, null, () => this.display()).open();
       });
       const list = this.contentDiv.createEl("div", { cls: "xyw-widget-list" });
@@ -2715,7 +2780,7 @@ var WidgetSettingTab = class extends import_obsidian8.PluginSettingTab {
     if (leaves.length > 0) {
       const leafHeader = this.contentDiv.createEl("div", { cls: "xyw-section-header" });
       leafHeader.createEl("h3", { text: `\u{1F331} ${t("label-leaf")}` });
-      new import_obsidian8.ButtonComponent(leafHeader).setButtonText("\u65B0\u5EFA").setCta().onClick(async () => {
+      new import_obsidian8.ButtonComponent(leafHeader).setButtonText(t("btn-new-leaf")).setCta().onClick(async () => {
         const modal = new ChildEditorModal(this.app, this.store, null);
         await modal.openAndGet();
         this.display();
@@ -2854,6 +2919,7 @@ var WidgetPlugin = class extends import_obsidian9.Plugin {
     );
     this.renderer = new CodeBlockRenderer(this.store, this);
     this.migrateLegacyTypes();
+    await this.migrateContainerData();
     this.registerWidgetTypes();
     this.registerCodeBlockProcessor();
     this.registerContextMenu();
@@ -2864,312 +2930,302 @@ var WidgetPlugin = class extends import_obsidian9.Plugin {
     this.renderer.destroy();
   }
   registerWidgetTypes() {
-    const metas = [
+    const widgetRegistrations = [
       {
-        type: "stats-card",
-        defaultTitle: t("type-stats-card"),
-        description: "Display vault statistics as a card",
-        settingSchema: [
-          {
-            key: "dimension",
-            labelKey: "config-dimension",
-            type: "select",
-            defaultValue: "total",
-            options: [
-              { label: t("stats-total-notes"), value: "total" },
-              { label: t("stats-today"), value: "today" },
-              { label: t("stats-week"), value: "week" }
-            ]
-          },
-          {
-            key: "showLabel",
-            labelKey: "config-stats-show-label",
-            type: "select",
-            defaultValue: "show",
-            options: [
-              { label: t("label-show"), value: "show" },
-              { label: t("label-hide"), value: "hide" }
-            ]
-          }
-        ]
+        ctor: StatsCardWidget,
+        meta: {
+          type: "stats-card",
+          defaultTitle: t("type-stats-card"),
+          description: "Display vault statistics as a card",
+          settingSchema: [
+            {
+              key: "dimension",
+              labelKey: "config-dimension",
+              type: "select",
+              defaultValue: "total",
+              options: [
+                { label: t("stats-total-notes"), value: "total" },
+                { label: t("stats-today"), value: "today" },
+                { label: t("stats-week"), value: "week" }
+              ]
+            },
+            {
+              key: "showLabel",
+              labelKey: "config-stats-show-label",
+              type: "select",
+              defaultValue: "show",
+              options: [
+                { label: t("label-show"), value: "show" },
+                { label: t("label-hide"), value: "hide" }
+              ]
+            }
+          ]
+        }
       },
       {
-        type: "recent-files",
-        defaultTitle: t("type-recent-files"),
-        description: "List recently modified files",
-        settingSchema: [
-          {
-            key: "limit",
-            labelKey: "config-limit",
-            type: "number",
-            defaultValue: 10,
-            placeholder: "10"
-          }
-        ]
+        ctor: RecentFilesWidget,
+        meta: {
+          type: "recent-files",
+          defaultTitle: t("type-recent-files"),
+          description: "List recently modified files",
+          settingSchema: [
+            {
+              key: "limit",
+              labelKey: "config-limit",
+              type: "number",
+              defaultValue: 10,
+              placeholder: "10"
+            }
+          ]
+        }
       },
       {
-        type: "tag-cloud",
-        defaultTitle: t("type-tag-cloud"),
-        description: "Display tags as a cloud",
-        settingSchema: [
-          {
-            key: "minCount",
-            labelKey: "config-min-count",
-            type: "number",
-            defaultValue: 1,
-            placeholder: "1"
-          }
-        ]
+        ctor: TagCloudWidget,
+        meta: {
+          type: "tag-cloud",
+          defaultTitle: t("type-tag-cloud"),
+          description: "Display tags as a cloud",
+          settingSchema: [
+            {
+              key: "minCount",
+              labelKey: "config-min-count",
+              type: "number",
+              defaultValue: 1,
+              placeholder: "1"
+            }
+          ]
+        }
       },
       {
-        type: "dataview",
-        defaultTitle: t("type-dataview"),
-        description: "Execute a Dataview DQL query (auto-detect table/list/task)",
-        settingSchema: [
-          {
-            key: "query",
-            labelKey: "config-query",
-            type: "textarea",
-            defaultValue: "",
-            placeholder: 'TABLE file.ctime FROM ""'
-          }
-        ]
+        ctor: DataviewWidget,
+        meta: {
+          type: "dataview",
+          defaultTitle: t("type-dataview"),
+          description: "Execute a Dataview DQL query (auto-detect table/list/task)",
+          settingSchema: [
+            {
+              key: "query",
+              labelKey: "config-query",
+              type: "textarea",
+              defaultValue: "",
+              placeholder: 'TABLE file.ctime FROM ""'
+            }
+          ]
+        }
       },
       {
-        type: "dv-js",
-        defaultTitle: t("type-dv-js"),
-        description: "Execute custom JavaScript with Dataview API",
-        settingSchema: [
-          {
-            key: "code",
-            labelKey: "config-js-code",
-            type: "textarea",
-            defaultValue: "",
-            placeholder: 'dv.paragraph("Hello from DataviewJS!")'
-          }
-        ]
+        ctor: DataviewJSWidget,
+        meta: {
+          type: "dv-js",
+          defaultTitle: t("type-dv-js"),
+          description: "Execute custom JavaScript with Dataview API",
+          settingSchema: [
+            {
+              key: "code",
+              labelKey: "config-js-code",
+              type: "textarea",
+              defaultValue: "",
+              placeholder: 'dv.paragraph("Hello from DataviewJS!")'
+            }
+          ]
+        }
       },
       {
-        type: "container-row",
-        defaultTitle: t("type-container-row"),
-        description: "Arrange child widgets in a horizontal row",
-        settingSchema: []
+        ctor: ContainerWidget,
+        meta: {
+          type: "container",
+          defaultTitle: t("type-container"),
+          description: "Container with optional tab bar and freeform layout",
+          settingSchema: []
+        }
       },
       {
-        type: "container-col",
-        defaultTitle: t("type-container-col"),
-        description: "Arrange child widgets in a vertical column",
-        settingSchema: []
+        ctor: BacklinksWidget,
+        meta: {
+          type: "backlinks",
+          defaultTitle: t("type-backlinks"),
+          description: "Show backlinks for the active file",
+          settingSchema: []
+        }
       },
       {
-        type: "container-tab-h",
-        defaultTitle: t("type-container-tab-h"),
-        description: "Arrange child widgets as horizontal tabs",
-        settingSchema: []
+        ctor: RandomNoteWidget,
+        meta: {
+          type: "random-note",
+          defaultTitle: t("type-random-note"),
+          description: "Open a random note",
+          settingSchema: []
+        }
       },
       {
-        type: "container-tab-v",
-        defaultTitle: t("type-container-tab-v"),
-        description: "Arrange child widgets as vertical tabs",
-        settingSchema: []
+        ctor: ButtonWidget,
+        meta: {
+          type: "button",
+          defaultTitle: t("type-button"),
+          description: "A clickable button that executes a command or opens a note",
+          settingSchema: [
+            {
+              key: "buttonText",
+              labelKey: "config-button-text",
+              type: "text",
+              defaultValue: "Button",
+              placeholder: "Button"
+            },
+            {
+              key: "buttonStyle",
+              labelKey: "config-button-style",
+              type: "select",
+              defaultValue: "default",
+              options: [
+                { label: t("btn-style-default"), value: "default" },
+                { label: t("btn-style-primary"), value: "primary" },
+                { label: t("btn-style-outline"), value: "outline" },
+                { label: t("btn-style-ghost"), value: "ghost" },
+                { label: t("btn-style-danger"), value: "danger" },
+                { label: t("btn-style-custom"), value: "custom" }
+              ]
+            },
+            {
+              key: "cssClass",
+              labelKey: "config-css-class",
+              type: "textarea",
+              defaultValue: "",
+              placeholder: "my-btn my-style",
+              dependsOn: { field: "buttonStyle", values: ["custom"] }
+            },
+            {
+              key: "icon",
+              labelKey: "config-icon",
+              type: "select",
+              defaultValue: "",
+              options: [
+                { label: t("icon-none"), value: "" },
+                ...COMMON_ICONS.map((v) => ({ label: v, value: v })),
+                { label: t("icon-custom"), value: "__custom__" }
+              ]
+            },
+            {
+              key: "customIcon",
+              labelKey: "config-custom-icon",
+              type: "text",
+              defaultValue: "",
+              placeholder: "custom lucide icon name",
+              dependsOn: { field: "icon", values: ["__custom__"] }
+            },
+            {
+              key: "actionType",
+              labelKey: "config-action-type",
+              type: "select",
+              defaultValue: "command",
+              options: [
+                { label: t("action-command"), value: "command" },
+                { label: t("action-open-note"), value: "open-note" }
+              ]
+            },
+            {
+              key: "command",
+              labelKey: "config-command-id",
+              type: "text",
+              defaultValue: "",
+              placeholder: "app:open-vault",
+              dependsOn: { field: "actionType", values: ["command"] }
+            },
+            {
+              key: "notePath",
+              labelKey: "config-note-path",
+              type: "text",
+              defaultValue: "",
+              placeholder: "folder/note.md",
+              dependsOn: { field: "actionType", values: ["open-note"] }
+            }
+          ]
+        }
       },
       {
-        type: "container-freeform",
-        defaultTitle: t("type-container-freeform"),
-        description: "Free-form layout with absolute positioning",
-        settingSchema: []
-      },
-      {
-        type: "backlinks",
-        defaultTitle: t("type-backlinks"),
-        description: "Show backlinks for the active file",
-        settingSchema: []
-      },
-      {
-        type: "random-note",
-        defaultTitle: t("type-random-note"),
-        description: "Open a random note",
-        settingSchema: []
-      },
-      {
-        type: "button",
-        defaultTitle: t("type-button"),
-        description: "A clickable button that executes a command or opens a note",
-        settingSchema: [
-          {
-            key: "buttonText",
-            labelKey: "config-button-text",
-            type: "text",
-            defaultValue: "Button",
-            placeholder: "Button"
-          },
-          {
-            key: "buttonStyle",
-            labelKey: "config-button-style",
-            type: "select",
-            defaultValue: "default",
-            options: [
-              { label: t("btn-style-default"), value: "default" },
-              { label: t("btn-style-primary"), value: "primary" },
-              { label: t("btn-style-outline"), value: "outline" },
-              { label: t("btn-style-ghost"), value: "ghost" },
-              { label: t("btn-style-danger"), value: "danger" },
-              { label: t("btn-style-custom"), value: "custom" }
-            ]
-          },
-          {
-            key: "cssClass",
-            labelKey: "config-css-class",
-            type: "textarea",
-            defaultValue: "",
-            placeholder: "my-btn my-style",
-            dependsOn: { field: "buttonStyle", values: ["custom"] }
-          },
-          {
-            key: "icon",
-            labelKey: "config-icon",
-            type: "select",
-            defaultValue: "",
-            options: [
-              { label: t("icon-none"), value: "" },
-              ...COMMON_ICONS.map((v) => ({ label: v, value: v })),
-              { label: t("icon-custom"), value: "__custom__" }
-            ]
-          },
-          {
-            key: "customIcon",
-            labelKey: "config-custom-icon",
-            type: "text",
-            defaultValue: "",
-            placeholder: "custom lucide icon name",
-            dependsOn: { field: "icon", values: ["__custom__"] }
-          },
-          {
-            key: "actionType",
-            labelKey: "config-action-type",
-            type: "select",
-            defaultValue: "command",
-            options: [
-              { label: t("action-command"), value: "command" },
-              { label: t("action-open-note"), value: "open-note" }
-            ]
-          },
-          {
-            key: "command",
-            labelKey: "config-command-id",
-            type: "text",
-            defaultValue: "",
-            placeholder: "app:open-vault",
-            dependsOn: { field: "actionType", values: ["command"] }
-          },
-          {
-            key: "notePath",
-            labelKey: "config-note-path",
-            type: "text",
-            defaultValue: "",
-            placeholder: "folder/note.md",
-            dependsOn: { field: "actionType", values: ["open-note"] }
-          }
-        ]
-      },
-      {
-        type: "label",
-        defaultTitle: t("type-label"),
-        description: "A text label that can execute a command or open a note on click",
-        settingSchema: [
-          {
-            key: "text",
-            labelKey: "config-label-text",
-            type: "textarea",
-            defaultValue: "Label",
-            placeholder: "Label text"
-          },
-          {
-            key: "labelStyle",
-            labelKey: "config-label-style",
-            type: "select",
-            defaultValue: "default",
-            options: [
-              { label: t("label-style-default"), value: "default" },
-              { label: t("label-style-heading"), value: "heading" },
-              { label: t("label-style-tag"), value: "tag" },
-              { label: t("label-style-link"), value: "link" },
-              { label: t("label-style-custom"), value: "custom" }
-            ]
-          },
-          {
-            key: "cssClass",
-            labelKey: "config-css-class",
-            type: "textarea",
-            defaultValue: "",
-            placeholder: "my-label my-style",
-            dependsOn: { field: "labelStyle", values: ["custom"] }
-          },
-          {
-            key: "icon",
-            labelKey: "config-icon",
-            type: "select",
-            defaultValue: "",
-            options: [
-              { label: t("icon-none"), value: "" },
-              ...COMMON_ICONS.map((v) => ({ label: v, value: v })),
-              { label: t("icon-custom"), value: "__custom__" }
-            ]
-          },
-          {
-            key: "customIcon",
-            labelKey: "config-custom-icon",
-            type: "text",
-            defaultValue: "",
-            placeholder: "custom lucide icon name",
-            dependsOn: { field: "icon", values: ["__custom__"] }
-          },
-          {
-            key: "actionType",
-            labelKey: "config-action-type",
-            type: "select",
-            defaultValue: "command",
-            options: [
-              { label: t("action-command"), value: "command" },
-              { label: t("action-open-note"), value: "open-note" }
-            ]
-          },
-          {
-            key: "command",
-            labelKey: "config-command-id",
-            type: "text",
-            defaultValue: "",
-            placeholder: "app:open-vault",
-            dependsOn: { field: "actionType", values: ["command"] }
-          },
-          {
-            key: "notePath",
-            labelKey: "config-note-path",
-            type: "text",
-            defaultValue: "",
-            placeholder: "folder/note.md",
-            dependsOn: { field: "actionType", values: ["open-note"] }
-          }
-        ]
+        ctor: LabelWidget,
+        meta: {
+          type: "label",
+          defaultTitle: t("type-label"),
+          description: "A text label that can execute a command or open a note on click",
+          settingSchema: [
+            {
+              key: "text",
+              labelKey: "config-label-text",
+              type: "textarea",
+              defaultValue: "Label",
+              placeholder: "Label text"
+            },
+            {
+              key: "labelStyle",
+              labelKey: "config-label-style",
+              type: "select",
+              defaultValue: "default",
+              options: [
+                { label: t("label-style-default"), value: "default" },
+                { label: t("label-style-heading"), value: "heading" },
+                { label: t("label-style-tag"), value: "tag" },
+                { label: t("label-style-link"), value: "link" },
+                { label: t("label-style-custom"), value: "custom" }
+              ]
+            },
+            {
+              key: "cssClass",
+              labelKey: "config-css-class",
+              type: "textarea",
+              defaultValue: "",
+              placeholder: "my-label my-style",
+              dependsOn: { field: "labelStyle", values: ["custom"] }
+            },
+            {
+              key: "icon",
+              labelKey: "config-icon",
+              type: "select",
+              defaultValue: "",
+              options: [
+                { label: t("icon-none"), value: "" },
+                ...COMMON_ICONS.map((v) => ({ label: v, value: v })),
+                { label: t("icon-custom"), value: "__custom__" }
+              ]
+            },
+            {
+              key: "customIcon",
+              labelKey: "config-custom-icon",
+              type: "text",
+              defaultValue: "",
+              placeholder: "custom lucide icon name",
+              dependsOn: { field: "icon", values: ["__custom__"] }
+            },
+            {
+              key: "actionType",
+              labelKey: "config-action-type",
+              type: "select",
+              defaultValue: "command",
+              options: [
+                { label: t("action-command"), value: "command" },
+                { label: t("action-open-note"), value: "open-note" }
+              ]
+            },
+            {
+              key: "command",
+              labelKey: "config-command-id",
+              type: "text",
+              defaultValue: "",
+              placeholder: "app:open-vault",
+              dependsOn: { field: "actionType", values: ["command"] }
+            },
+            {
+              key: "notePath",
+              labelKey: "config-note-path",
+              type: "text",
+              defaultValue: "",
+              placeholder: "folder/note.md",
+              dependsOn: { field: "actionType", values: ["open-note"] }
+            }
+          ]
+        }
       }
     ];
-    const widgets = [
-      { ctor: StatsCardWidget, meta: metas[0] },
-      { ctor: RecentFilesWidget, meta: metas[1] },
-      { ctor: TagCloudWidget, meta: metas[2] },
-      { ctor: DataviewWidget, meta: metas[3] },
-      { ctor: DataviewJSWidget, meta: metas[4] },
-      { ctor: ContainerRowWidget, meta: metas[5] },
-      { ctor: ContainerColWidget, meta: metas[6] },
-      { ctor: ContainerTabHWidget, meta: metas[7] },
-      { ctor: ContainerTabVWidget, meta: metas[8] },
-      { ctor: ContainerFreeformWidget, meta: metas[9] },
-      { ctor: BacklinksWidget, meta: metas[10] },
-      { ctor: RandomNoteWidget, meta: metas[11] },
-      { ctor: ButtonWidget, meta: metas[12] },
-      { ctor: LabelWidget, meta: metas[13] }
-    ];
-    for (const { ctor, meta } of widgets) {
+    for (const { ctor, meta } of widgetRegistrations) {
       registerWidgetType(ctor, meta);
     }
   }
@@ -3199,10 +3255,51 @@ var WidgetPlugin = class extends import_obsidian9.Plugin {
     if (changed)
       new import_obsidian9.Notice("\u5DF2\u8FC1\u79FB\u65E7\u6570\u636E\uFF0C\u5B50\u90E8\u4EF6\u5DF2\u63D0\u5347\u4E3A\u72EC\u7ACB\u90E8\u4EF6");
   }
+  async migrateContainerData() {
+    let changed = false;
+    for (const w of this.store.getWidgets()) {
+      if (w.type !== "container")
+        continue;
+      const positions = w.settings?.childPositions;
+      if (positions && w.settings?._freeformVersion !== 2) {
+        for (const key of Object.keys(positions)) {
+          const p = positions[key];
+          positions[key] = {
+            x: Math.round(p.x / 100 * 600),
+            y: Math.round(p.y / 100 * 400),
+            w: Math.round(p.w / 100 * 600),
+            h: Math.round(p.h / 100 * 400)
+          };
+        }
+        w.settings._freeformVersion = 2;
+        changed = true;
+      }
+      const tabs = w.settings?.tabs;
+      if (!tabs || tabs.length === 0) {
+        const flatChildren = w.children ?? [];
+        const flatPositions = w.settings?.childPositions ?? {};
+        w.settings.tabs = [{
+          name: "Tab 1",
+          children: [...flatChildren],
+          childPositions: JSON.parse(JSON.stringify(flatPositions))
+        }];
+        w.settings.showTabs = false;
+        w.settings.tabPosition = "top";
+        changed = true;
+      }
+    }
+    if (changed)
+      await this.store.save();
+  }
   migrateLegacyTypes() {
     const typeMap = {
       "dv-table": "dataview",
-      "dv-list": "dataview"
+      "dv-list": "dataview",
+      "container-row": "container",
+      "container-col": "container",
+      "container-tab-h": "container",
+      "container-tab-v": "container",
+      "container-freeform": "container"
     };
     for (const w of this.store.getWidgets()) {
       const newType = typeMap[w.type];

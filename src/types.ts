@@ -1,20 +1,37 @@
-export type WidgetType =
-  | 'stats-card'
-  | 'recent-files'
-  | 'tag-cloud'
-  | 'dataview'
-  | 'dv-js'
-  | 'backlinks'
-  | 'random-note'
-  | 'button'
-  | 'label';
+export const LEAF_TYPES = [
+  'stats-card',
+  'recent-files',
+  'tag-cloud',
+  'dataview',
+  'dv-js',
+  'backlinks',
+  'random-note',
+  'button',
+  'label',
+] as const;
 
-export type ContainerType =
-  | 'container-row'
-  | 'container-col'
-  | 'container-tab-h'
-  | 'container-tab-v'
-  | 'container-freeform';
+export type WidgetType = typeof LEAF_TYPES[number];
+
+export const CONTAINER_TYPES = [
+  'container',
+] as const;
+
+export type ContainerType = typeof CONTAINER_TYPES[number];
+
+export type LayoutMode = 'freeform' | 'row' | 'col' | 'tab';
+
+export type TabPosition = 'top' | 'left' | 'right' | 'bottom';
+
+export const DEFAULT_CHILD_X = 10;
+export const DEFAULT_CHILD_Y = 10;
+export const DEFAULT_CHILD_W = 100;
+export const DEFAULT_CHILD_H = 200;
+
+export interface TabPage {
+  name: string;
+  children: string[];
+  childPositions: Record<string, { x: number; y: number; w: number; h: number }>;
+}
 
 export type AnyWidgetType = WidgetType | ContainerType;
 
@@ -36,10 +53,7 @@ export interface WidgetStyle {
   borderColor?: string;
   width?: string;
   height?: string;
-  paddingTop?: string;
-  paddingBottom?: string;
-  paddingLeft?: string;
-  paddingRight?: string;
+  containerPaddingRight?: string;
   cardStyle?: string;
   contentStyle?: string;
 }
